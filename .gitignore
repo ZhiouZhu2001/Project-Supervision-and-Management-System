@@ -218,3 +218,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Node / Next.js (added for this project) ---
+node_modules/
+.next/
+out/
+.pnpm-store/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Local environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Project artifacts ---
+/data/uploads/
+*.log
+
+
+# --- Local git credentials / host keys ---
+.secrets/
+

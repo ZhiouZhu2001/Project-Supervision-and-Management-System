@@ -1,0 +1,5 @@
+# A business day runs 04:00 to 04:00 Europe/Madrid, and cannot be configured
+
+A business day is the window `[04:00, next 04:00)` in `Europe/Madrid`, and its date is the calendar date of the starting instant. The 04:00 boundary rather than midnight exists so that something written at 01:00 still belongs to "yesterday" — the person this system is for is far more likely to be logging at 01:00 than at 06:00, and a midnight cutover would declare him missed on exactly the days he needs the tool most. The timezone is fixed rather than following the device because it is the single coordinate for streaks, alert decisions and calendar rendering; making it configurable would let a trip abroad retroactively shift every historical streak.
+
+**Consequences**: this is one of the hardest constants in the system to change — altering it recomputes every historical streak and completion rate. It therefore lives as a non-configurable constant, and all business-day arithmetic is confined to `app/services/business_day.py`; any date math that bypasses that module is a defect.
