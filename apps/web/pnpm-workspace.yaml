@@ -1,0 +1,8 @@
+# pnpm 10+ records build-script approval here, not in package.json.
+# Tailwind v4 ships a native binary that needs its postinstall step; without
+# this the CSS pipeline fails at build time with an unrelated-looking error.
+packages:
+  - "."
+
+allowBuilds:
+  "@tailwindcss/oxide": true

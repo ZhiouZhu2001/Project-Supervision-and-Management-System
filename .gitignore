@@ -235,8 +235,13 @@ next-env.d.ts
 # --- Project artifacts ---
 /data/uploads/
 *.log
+.pnpm-store/
 
 
 # --- Local git credentials / host keys ---
 .secrets/
+
+
+# --- Test tooling leftovers ---
+pytest-cache-files-*/
 

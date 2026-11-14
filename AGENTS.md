@@ -10,9 +10,9 @@ A single-user **self-supervision system**. The owner logs what he did each day a
 
 ## Current status
 
-**Phase 0 — documents only. There is no application code yet.** Everything under `apps/` and `infra/` is a plan, not an implementation.
+**Phase 1 in progress. Ticket 01 (platform skeleton) is complete**: the stack comes up with `make dev`, the proxy serves the web shell, and `/api/healthz` performs a real database round trip. There is no domain code yet — projects, logs and streaks arrive in tickets 04 and beyond.
 
-Next steps, in order: build the schema from ARCHITECTURE §4, the API surface from §6, then the web screens from the PRD page list.
+Tickets live in `docs/tickets/0001-phase-1-mvp/`, numbered in dependency order, each declaring its blockers. Work the frontier: a ticket whose blockers are not all done is not ready.
 
 Phase 1 is web-first. The React Native client is Phase 2: **do not scaffold anything for it now**, but keep the API contract client-agnostic.
 
@@ -59,7 +59,7 @@ Changing a row here requires an ADR and the owner's agreement. Do **not** swap a
 | Reverse proxy | nginx |
 | Orchestration | Docker Compose |
 | Host | OVHcloud VPS / Ubuntu 24.04 LTS |
-| Tests | pytest + pytest-asyncio + httpx (API) / Vitest (web) |
+| Tests | pytest + pytest-asyncio + httpx (API) / TypeScript typecheck (web, no runner yet) |
 | Mobile (Phase 2) | React Native + Expo |
 
 **Never introduce**: Redux, Prisma, TypeORM, GraphQL, tRPC, Server Actions that write to the DB, Sentry (revisit in Phase 3), a second design system alongside shadcn, or any CRUD scaffold generator.
@@ -133,9 +133,9 @@ make dev            # dev environment (Postgres + hot reload)
 make down           # stop
 make migrate        # alembic upgrade head
 make migration m="" # generate a migration (edit downgrade by hand)
-make test           # api + web tests
+make test           # api tests + web typecheck
 make test-api       # pytest
-make test-web       # vitest
+make test-web       # tsc --noEmit
 make lint           # ruff + tsc --noEmit
 make fmt            # ruff format + prettier
 make shell-api      # shell into the api container
@@ -160,6 +160,7 @@ The remote is `origin` → `https://github.com/ZhiouZhu2001/Project-Supervision-
 - **The body explains why**, and cites the rule or decision it implements — `Refs R5`, `See ADR 0003`.
 - **Never** force-push `main`, rewrite pushed history, commit `.env` or any secret, commit generated artifacts (`node_modules`, `.next`, `__pycache__`, `.venv`), or bypass hooks with `--no-verify`.
 - **This Windows machine needs `git config http.sslBackend openssl`** — schannel fails to negotiate TLS here. It is already set in the local repo config; do not remove it.
+- **On this Windows machine, build through Docker, not through a local `pnpm install`.** The local pnpm crashes its Rust worker during extraction and leaves packages half-unpacked; the Linux container is unaffected. Local `uv` works fine for the API.
 - **If a push fails for credentials, stop and report it.** Do not invent a token, do not switch the remote to a different protocol, do not ask for a password in a commit message.
 
 A slice counts as delivered only when `git status` is clean and `origin/main` matches `HEAD`.

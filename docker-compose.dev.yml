@@ -1,0 +1,49 @@
+# Development overlay. The only port published to the host is the proxy, and
+# it is bound to loopback. Database and API are reached through the proxy
+# (`/api`) or through `make psql` / `make shell-api`, which exec into the
+# container — publishing them buys convenience at the cost of a port that can
+# collide with something already installed on the machine.
+
+services:
+  api:
+    build:
+      target: dev
+    environment:
+      APP_ENV: development
+      APP_BASE_URL: http://localhost:8080
+    command:
+      - uv
+      - run
+      - --no-sync
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+      - --reload
+    volumes:
+      - ./apps/api/app:/app/app:ro
+      - ./apps/api/tests:/app/tests:ro
+
+  web:
+    build:
+      target: dev
+    environment:
+      NODE_ENV: development
+    command:
+      - pnpm
+      - dev
+      - --hostname
+      - 0.0.0.0
+      - --port
+      - "3000"
+    volumes:
+      - ./apps/web/src:/app/src:ro
+      - ./apps/web/public:/app/public:ro
+
+  nginx:
+    ports:
+      - "127.0.0.1:8080:80"
