@@ -76,7 +76,9 @@ Changing a row here requires an ADR and the owner's agreement. Do **not** swap a
 ├── docs/
 │   ├── PRD.md                   # rules R1–R14, stories, acceptance
 │   ├── ARCHITECTURE.md          # topology, schema, API, deployment, non-goals
-│   └── adr/
+│   ├── adr/
+│   ├── specs/                   # one spec per deliverable slice
+│   └── tickets/                 # one file per ticket, numbered in dependency order
 ├── docker-compose.yml           # nginx / web / api / db / backup
 ├── docker-compose.dev.yml       # dev overrides: hot reload, exposed ports
 ├── Makefile                     # the only documented entry point for commands

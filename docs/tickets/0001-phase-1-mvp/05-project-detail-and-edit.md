@@ -1,0 +1,13 @@
+# 05: Project detail and edit
+
+**What to build:** Each project has a detail page, and from there the owner can rename it, recolour it and reorder it — changes visible immediately in the list and on today's view.
+
+**Blocked by:** 04
+
+**Status:** ready-for-agent
+
+- [ ] The detail page shows name, start date, status, current streak and that project's logs (none yet).
+- [ ] Renaming updates the list and the detail page without a full page reload.
+- [ ] Colour and sort order persist and reorder the list.
+- [ ] Editing cannot change the start date or the status; those are separate operations and an attempt returns 422.
+- [ ] A rename to an empty string is rejected with the same code as creation.
