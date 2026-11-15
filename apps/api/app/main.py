@@ -11,6 +11,7 @@ from app.config import DEVELOPMENT_PASSWORD, DEVELOPMENT_SECRET, get_settings
 from app.db import check_database, dispose_engine, get_session_factory
 from app.errors import ApiError, api_error_handler, error_body
 from app.routers.auth import router as auth_router
+from app.routers.projects import router as projects_router
 
 
 @asynccontextmanager
@@ -55,8 +56,18 @@ def create_app() -> FastAPI:
     async def validation_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
         # The framework's default body is a list of internal locations; the
         # client contract is the single error shape, so translate it once here.
+        # `ctx` can carry a raw exception object (a field validator's
+        # ValueError), which is not JSON serialisable, so it is stringified.
+        errors = []
+        for error in exc.errors():
+            cleaned = {key: value for key, value in error.items() if key != "ctx"}
+            context = error.get("ctx")
+            if context:
+                cleaned["ctx"] = {key: str(value) for key, value in context.items()}
+            errors.append(cleaned)
+
         return JSONResponse(
-            error_body("VALIDATION_ERROR", "Request validation failed", {"errors": exc.errors()}),
+            error_body("VALIDATION_ERROR", "Request validation failed", {"errors": errors}),
             status_code=422,
         )
 
@@ -78,6 +89,7 @@ def create_app() -> FastAPI:
         return await call_next(request)
 
     app.include_router(auth_router, prefix="/api")
+    app.include_router(projects_router, prefix="/api")
 
     @app.get("/api/healthz", tags=["ops"])
     async def healthz() -> JSONResponse:
