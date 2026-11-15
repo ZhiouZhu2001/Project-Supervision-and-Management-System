@@ -22,11 +22,17 @@ export function CreateProjectForm() {
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
     onError: (cause: unknown) => {
-      setError(
-        cause instanceof ApiError && cause.code === "VALIDATION_ERROR"
-          ? "A project needs a name of 1–60 characters."
-          : "Could not create the project. Try again.",
-      );
+      if (cause instanceof ApiError) {
+        // The code is shown, not hidden: this is a one-person tool, and a
+        // generic "try again" costs a round trip to diagnose.
+        setError(
+          cause.code === "VALIDATION_ERROR"
+            ? "A project needs a name of 1–60 characters."
+            : `Could not create the project (${cause.code}).`,
+        );
+        return;
+      }
+      setError("Could not create the project. Try again.");
     },
   });
 

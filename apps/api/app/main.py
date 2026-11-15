@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -75,17 +76,24 @@ def create_app() -> FastAPI:
     async def reject_foreign_origins(request: Request, call_next: Any):
         """CSRF defence for cookie-authenticated writes (see architecture §7).
 
-        SameSite=Lax already blocks most cross-site posts; this closes the
-        remaining gap. A request with no Origin header is a non-browser
-        client and is allowed — it carries no ambient cookie.
+        The comparison is against the request's own Host, not a configured
+        base URL: `localhost:8080` and `127.0.0.1:8080` are the same origin as
+        far as the browser is concerned, and a configured value would reject
+        one of them. A request with no Origin header is a non-browser client
+        and is allowed — it carries no ambient cookie.
         """
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             origin = request.headers.get("origin")
-            if origin is not None and origin.rstrip("/") != settings.app_base_url.rstrip("/"):
-                return JSONResponse(
-                    error_body("ORIGIN_REJECTED", "Cross-origin request rejected"),
-                    status_code=403,
-                )
+            if origin is not None:
+                origin_host = urlsplit(origin).hostname
+                host_header = request.headers.get("host", "")
+                host = host_header.rsplit(":", 1)[0] if host_header.count(":") == 1 else host_header
+                allowed = {host, urlsplit(settings.app_base_url).hostname}
+                if origin_host not in allowed:
+                    return JSONResponse(
+                        error_body("ORIGIN_REJECTED", "Cross-origin request rejected"),
+                        status_code=403,
+                    )
         return await call_next(request)
 
     app.include_router(auth_router, prefix="/api")

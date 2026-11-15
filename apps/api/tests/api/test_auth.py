@@ -133,6 +133,28 @@ async def test_the_same_origin_is_accepted_on_writes(client: httpx.AsyncClient) 
     assert response.status_code == 200
 
 
+async def test_the_loopback_spelling_is_the_same_origin(client: httpx.AsyncClient) -> None:
+    # Opening the app at 127.0.0.1 instead of localhost must not break writes:
+    # the browser's origin matches the Host it sent, which is what matters.
+    response = await client.post(
+        LOGIN,
+        json={"email": ACCOUNT_EMAIL, "password": ACCOUNT_PASSWORD},
+        headers={"host": "127.0.0.1:8080", "origin": "http://127.0.0.1:8080"},
+    )
+
+    assert response.status_code == 200
+
+
+async def test_a_foreign_origin_cannot_borrow_the_host_header(client: httpx.AsyncClient) -> None:
+    response = await client.post(
+        LOGIN,
+        json={"email": ACCOUNT_EMAIL, "password": ACCOUNT_PASSWORD},
+        headers={"host": "localhost:8080", "origin": "http://evil.example"},
+    )
+
+    assert response.status_code == 403
+
+
 async def test_the_password_is_never_stored_in_plain_text(
     client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
