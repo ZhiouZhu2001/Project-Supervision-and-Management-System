@@ -12,6 +12,7 @@ from app.deps import COOKIE_NAME, CurrentAccount
 from app.errors import invalid_credentials, unauthenticated
 from app.models.account import Account
 from app.models.session import Session
+from app.net import client_ip
 from app.security import (
     SESSION_TTL,
     build_session,
@@ -19,6 +20,7 @@ from app.security import (
     new_session_token,
     verify_password,
 )
+from app.throttle import login_throttle
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -50,13 +52,24 @@ async def login(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> AccountView:
     settings = get_settings()
+    source = client_ip(request)
+
+    # A locked account answers exactly like a wrong password. Confirming the
+    # lock would confirm that the account exists, and the wait is short enough
+    # that hiding it costs the owner nothing.
+    if login_throttle.is_locked(payload.email, source):
+        raise invalid_credentials()
+
     account = await db.scalar(select(Account).where(Account.email == payload.email.lower()))
 
     # verify_password is called even when the account is missing, so the
     # response time does not reveal whether an email exists.
     if not verify_password(payload.password, account.password_hash if account else None):
+        login_throttle.note_failure(payload.email, source)
         raise invalid_credentials()
     assert account is not None
+
+    login_throttle.note_success(payload.email, source)
 
     token = new_session_token()
     session = build_session(
