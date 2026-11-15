@@ -39,6 +39,9 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
       APP_VERSION: ${APP_VERSION:-0.1.0}
       APP_ENV: ${APP_ENV:-development}
+      APP_EMAIL: ${APP_EMAIL:-owner@example.com}
+      APP_PASSWORD: ${APP_PASSWORD:-devpassword}
+      RUN_MIGRATIONS: "1"
       TZ: UTC
     depends_on:
       db:

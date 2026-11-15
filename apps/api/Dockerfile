@@ -23,6 +23,8 @@ FROM base AS runtime
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY app ./app
+COPY alembic.ini ./
+COPY alembic ./alembic
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 # One worker: the scheduler runs in-process and must not be duplicated.

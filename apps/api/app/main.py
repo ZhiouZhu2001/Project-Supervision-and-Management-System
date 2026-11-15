@@ -1,18 +1,26 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.bootstrap import ensure_account, run_migrations
 from app.clock import now_utc
-from app.config import get_settings
-from app.db import check_database, dispose_engine
-
-DEVELOPMENT_SECRET = "dev-only-not-a-secret"
+from app.config import DEVELOPMENT_PASSWORD, DEVELOPMENT_SECRET, get_settings
+from app.db import check_database, dispose_engine, get_session_factory
+from app.errors import ApiError, api_error_handler, error_body
+from app.routers.auth import router as auth_router
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    settings = get_settings()
+    if settings.run_migrations:
+        await run_migrations()
+        async with get_session_factory()() as session:
+            await ensure_account(session, email=settings.app_email, password=settings.app_password)
+            await session.commit()
     yield
     await dispose_engine()
 
@@ -20,11 +28,15 @@ async def lifespan(_app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
 
-    # The development secret is committed on purpose so that `make dev` works
-    # on a clean clone. Running with it in production would make every session
-    # cookie forgeable, so the process refuses to start instead.
-    if settings.app_env == "production" and settings.app_secret_key == DEVELOPMENT_SECRET:
-        raise RuntimeError("APP_SECRET_KEY must be set when APP_ENV=production")
+    # The development secret and password are committed on purpose so that
+    # `make dev` works on a clean clone. Running with them in production would
+    # make every session cookie forgeable and the login publicly known, so the
+    # process refuses to start instead.
+    if settings.app_env == "production":
+        if settings.app_secret_key == DEVELOPMENT_SECRET:
+            raise RuntimeError("APP_SECRET_KEY must be set when APP_ENV=production")
+        if settings.app_password == DEVELOPMENT_PASSWORD:
+            raise RuntimeError("APP_PASSWORD must be set when APP_ENV=production")
 
     app = FastAPI(
         title="Project Supervision and Management System",
@@ -36,6 +48,36 @@ def create_app() -> FastAPI:
         openapi_url=None,
         lifespan=lifespan,
     )
+
+    app.add_exception_handler(ApiError, api_error_handler)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        # The framework's default body is a list of internal locations; the
+        # client contract is the single error shape, so translate it once here.
+        return JSONResponse(
+            error_body("VALIDATION_ERROR", "Request validation failed", {"errors": exc.errors()}),
+            status_code=422,
+        )
+
+    @app.middleware("http")
+    async def reject_foreign_origins(request: Request, call_next: Any):
+        """CSRF defence for cookie-authenticated writes (see architecture §7).
+
+        SameSite=Lax already blocks most cross-site posts; this closes the
+        remaining gap. A request with no Origin header is a non-browser
+        client and is allowed — it carries no ambient cookie.
+        """
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            origin = request.headers.get("origin")
+            if origin is not None and origin.rstrip("/") != settings.app_base_url.rstrip("/"):
+                return JSONResponse(
+                    error_body("ORIGIN_REJECTED", "Cross-origin request rejected"),
+                    status_code=403,
+                )
+        return await call_next(request)
+
+    app.include_router(auth_router, prefix="/api")
 
     @app.get("/api/healthz", tags=["ops"])
     async def healthz() -> JSONResponse:

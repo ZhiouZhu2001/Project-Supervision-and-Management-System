@@ -1,10 +1,14 @@
+import { AccountBar } from "@/components/account-bar";
 import { HealthPill } from "@/components/health-pill";
 
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-6 px-6 py-16">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Project Supervision</h1>
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold tracking-tight">Project Supervision</h1>
+          <AccountBar />
+        </div>
         <p className="text-neutral-600 dark:text-neutral-400">
           Record what you actually did. Be told when you did not.
         </p>
@@ -16,7 +20,7 @@ export default function Home() {
       </section>
 
       <footer className="text-xs text-neutral-500">
-        Phase 1 · ticket 01. Projects, logging and streaks arrive in later slices.
+        Phase 1 · tickets 01–02. Projects, logging and streaks arrive in later slices.
       </footer>
     </main>
   );

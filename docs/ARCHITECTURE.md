@@ -305,7 +305,8 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | Method | Path | Notes |
 |---|---|---|
 | `POST` | `/auth/login` | `{email, password}` → sets cookie, returns the account |
-| `POST` | `/auth/logout` | Deletes the session |
+| `POST` | `/auth/logout` | Deletes the current session |
+| `POST` | `/auth/logout-all` | Deletes every session for the account |
 | `GET` | `/auth/me` | Account + flame data |
 | `GET` | `/today` | Today cards: per active project, expected/checked-in, current streak, red-banner state |
 | `GET` | `/projects` | List, filterable by `status`, includes `current_streak` and `longest_streak` |
