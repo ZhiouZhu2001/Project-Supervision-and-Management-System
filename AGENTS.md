@@ -10,7 +10,7 @@ A single-user **self-supervision system**. The owner logs what he did each day a
 
 ## Current status
 
-**Phase 1 in progress. Ticket 01 (platform skeleton) is complete**: the stack comes up with `make dev`, the proxy serves the web shell, and `/api/healthz` performs a real database round trip. There is no domain code yet — projects, logs and streaks arrive in tickets 04 and beyond.
+**Phase 1 in progress. Tickets 01–05 are complete**: the stack comes up with `make dev`; the owner can log in, create projects, open one, and edit its name, note, colour and order. Recording a log is the next slice — until then every project reads "Not recorded", which is literally true because no log exists yet.
 
 Tickets live in `docs/tickets/0001-phase-1-mvp/`, numbered in dependency order, each declaring its blockers. Work the frontier: a ticket whose blockers are not all done is not ready.
 
@@ -161,6 +161,7 @@ The remote is `origin` → `https://github.com/ZhiouZhu2001/Project-Supervision-
 - **Never** force-push `main`, rewrite pushed history, commit `.env` or any secret, commit generated artifacts (`node_modules`, `.next`, `__pycache__`, `.venv`), or bypass hooks with `--no-verify`.
 - **This Windows machine needs `git config http.sslBackend openssl`** — schannel fails to negotiate TLS here. It is already set in the local repo config; do not remove it.
 - **On this Windows machine, build through Docker, not through a local `pnpm install`.** The local pnpm crashes its Rust worker during extraction and leaves packages half-unpacked; the Linux container is unaffected. Local `uv` works fine for the API.
+- **Adding a new route directory requires `docker compose restart web`.** The Windows bind mount does not emit the directory-add events Next's dev watcher needs, so a brand-new route is served by the catch-all redirect until the server restarts. Editing existing files is picked up normally.
 - **If a push fails for credentials, stop and report it.** Do not invent a token, do not switch the remote to a different protocol, do not ask for a password in a commit message.
 
 A slice counts as delivered only when `git status` is clean and `origin/main` matches `HEAD`.

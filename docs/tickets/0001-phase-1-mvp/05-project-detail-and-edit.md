@@ -6,7 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] The detail page shows name, start date, status, current streak and that project's logs (none yet).
+- [ ] The detail page shows name, start date, status, colour and note, plus that project's logs (none yet).
+- [ ] The streak is not shown here yet; it arrives with ticket 08 and must not be faked in the meantime.
 - [ ] Renaming updates the list and the detail page without a full page reload.
 - [ ] Colour and sort order persist and reorder the list.
 - [ ] Editing cannot change the start date or the status; those are separate operations and an attempt returns 422.

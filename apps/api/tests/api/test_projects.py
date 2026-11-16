@@ -117,3 +117,95 @@ async def test_an_invalid_date_is_rejected(client: httpx.AsyncClient) -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+async def _create(client: httpx.AsyncClient, name: str) -> str:
+    response = await client.post(PROJECTS, json={"name": name})
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+async def test_the_detail_endpoint_returns_one_project(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _create(client, "Detail me")
+
+    response = await client.get(f"{PROJECTS}/{project_id}")
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Detail me"
+
+
+async def test_an_unknown_project_is_a_404_with_a_stable_code(
+    client: httpx.AsyncClient,
+) -> None:
+    await _login(client)
+
+    response = await client.get(f"{PROJECTS}/00000000-0000-0000-0000-000000000000")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
+
+
+async def test_renaming_is_visible_in_the_list(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _create(client, "Old name")
+
+    assert (
+        await client.patch(f"{PROJECTS}/{project_id}", json={"name": "New name"})
+    ).status_code == 200
+
+    listed = (await client.get(PROJECTS)).json()
+    assert [project["name"] for project in listed] == ["New name"]
+
+
+async def test_a_rename_to_blank_is_rejected(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _create(client, "Keep me")
+
+    response = await client.patch(f"{PROJECTS}/{project_id}", json={"name": "   "})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+async def test_the_start_date_cannot_be_edited_in_place(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _create(client, "Fixed start")
+
+    response = await client.patch(f"{PROJECTS}/{project_id}", json={"start_date": "2026-01-01"})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+async def test_the_status_cannot_be_edited_in_place(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _create(client, "Fixed status")
+
+    response = await client.patch(f"{PROJECTS}/{project_id}", json={"status": "paused"})
+
+    assert response.status_code == 422
+
+
+async def test_sort_order_is_persisted_and_reorders_the_list(
+    client: httpx.AsyncClient,
+) -> None:
+    await _login(client)
+    first = await _create(client, "First")
+    second = await _create(client, "Second")
+
+    a = (await client.get(f"{PROJECTS}/{first}")).json()["sort_order"]
+    b = (await client.get(f"{PROJECTS}/{second}")).json()["sort_order"]
+    await client.patch(f"{PROJECTS}/{first}", json={"sort_order": b})
+    await client.patch(f"{PROJECTS}/{second}", json={"sort_order": a})
+
+    names = [project["name"] for project in (await client.get(PROJECTS)).json()]
+    assert names == ["Second", "First"]
+
+
+async def test_editing_requires_a_session(client: httpx.AsyncClient) -> None:
+    response = await client.patch(
+        f"{PROJECTS}/00000000-0000-0000-0000-000000000000", json={"name": "x"}
+    )
+
+    assert response.status_code == 401

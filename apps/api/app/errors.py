@@ -39,3 +39,7 @@ def unauthenticated(message: str = "Authentication required") -> ApiError:
 
 def invalid_credentials() -> ApiError:
     return ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect")
+
+
+def project_not_found() -> ApiError:
+    return ApiError(404, "PROJECT_NOT_FOUND", "Project not found")
