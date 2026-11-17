@@ -180,6 +180,8 @@ Uploads are accepted only for images, verified by decoding rather than by trusti
 
 Next.js App Router with server-side rendering for first paint and TanStack Query for all server state; zustand is limited to interface state. The client performs no date arithmetic that affects behaviour: it formats what the API returns. Because the browser talks to one origin and the server-renderer talks to an internal host, the client must resolve two base URLs and forward the session cookie on the server side.
 
+Visual design is **not** decided in this document. [`docs/specs/0002-web-interface-design.md`](0002-web-interface-design.md) owns it, and [`docs/interface-preview.html`](../interface-preview.html) is its normative rendering: every screen must reproduce that preview's structure, copy, tokens, components and rhythm. A screen that "works but looks different" is not done. No icon package, component library or webfont may be added without an ADR, because each would break that constraint by construction.
+
 ### Deployment
 
 Docker Compose on an Ubuntu host behind nginx: proxy, web, api, database, and an opt-in backup profile. Only the proxy is exposed. The API runs a single worker because the scheduler is in-process and must not be duplicated.

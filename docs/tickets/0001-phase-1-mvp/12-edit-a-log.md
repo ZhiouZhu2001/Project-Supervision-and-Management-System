@@ -4,6 +4,8 @@
 
 **Blocked by:** 07
 
+**Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
+
 **Status:** ready-for-agent
 
 - [ ] Body, duration and tags can be edited, and the change is reflected in the day's list, the calendar and the statistics.

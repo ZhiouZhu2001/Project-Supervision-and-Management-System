@@ -4,6 +4,8 @@
 
 **Blocked by:** 05
 
+**Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
+
 **Status:** ready-for-agent
 
 - [ ] The current business day is shown somewhere always visible in the interface.

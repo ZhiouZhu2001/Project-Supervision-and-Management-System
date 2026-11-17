@@ -124,6 +124,18 @@ Every new directory must belong to one of the above. Do not create directories "
 
 ---
 
+## Visual design
+
+[`docs/interface-preview.html`](docs/interface-preview.html) is the **normative rendering** of every screen; [`docs/specs/0002-web-interface-design.md`](docs/specs/0002-web-interface-design.md) states its tokens, component inventory and the rules for extending it. "Exactly the same" means the same structure, the same copy, the same tokens, the same components and the same rhythm — verified by opening the preview beside the running application at desktop and phone widths.
+
+Consequences that are not negotiable:
+
+- Copy in the preview is final. Rewriting a heading or a helper sentence is a regression, not an improvement.
+- Styling comes from the CSS variables in the spec (`--paper`, `--ink`, `--accent`, `--radius`, …). Do not re-type hex values per component.
+- Icons are inline SVG on a 24×24 viewBox at `stroke-width: 1.65`. No icon package, no emoji standing in for an icon.
+- No component library, no webfont and no dark theme. The only permitted Tailwind usage is alongside these variables, not instead of them.
+- Where the preview is silent (an error, a 404, a loading state), extend it with the documented tokens; do not invent a second visual language.
+
 ## Commands
 
 Everything runs through `make`; never document long `docker compose` invocations.
