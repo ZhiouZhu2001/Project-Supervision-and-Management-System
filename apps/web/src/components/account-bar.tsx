@@ -3,8 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ApiError, logout, me } from "@/lib/api";
+
 import { Icon } from "@/components/icon";
+import { Button } from "@/components/ui/button";
+import { ApiError, logout, me } from "@/lib/api";
 
 export function AccountBar() {
   const router = useRouter();
@@ -14,10 +16,11 @@ export function AccountBar() {
     queryFn: me,
     retry: false,
   });
+
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401)
-      router.replace("/login");
+    if (error instanceof ApiError && error.status === 401) router.replace("/login");
   }, [error, router]);
+
   const signOut = useMutation({
     mutationFn: logout,
     onSuccess: () => {
@@ -26,35 +29,41 @@ export function AccountBar() {
       router.refresh();
     },
   });
+
+  const initial = (account?.display_name ?? account?.email ?? "O").slice(0, 1).toUpperCase();
+
   return (
-    <div>
-      <div className="account">
-        <span className="avatar" aria-hidden="true">
-          {(account?.display_name ?? account?.email ?? "O")
-            .slice(0, 1)
-            .toUpperCase()}
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-[10px]">
+        <span
+          aria-hidden="true"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-foreground text-[12px] font-[600] text-primary-foreground"
+        >
+          {initial}
         </span>
-        <div className="account-copy">
-          <strong>{account?.display_name ?? "Owner"}</strong>
-          <span>
-            {error
-              ? "Account unavailable"
-              : (account?.email ?? "Loading account…")}
+        <div className="flex min-w-0 flex-col leading-[1.35]">
+          <strong className="truncate text-[12px] font-[600] text-foreground">
+            {account?.display_name ?? "Owner"}
+          </strong>
+          <span className="truncate text-[11px] text-muted-foreground">
+            {error ? "Account unavailable" : (account?.email ?? "Loading account…")}
           </span>
         </div>
-        <button
+        <Button
           type="button"
-          className="icon-button"
+          variant="ghost"
+          size="icon"
+          className="ml-auto border-transparent"
           aria-label="Sign out"
           title="Sign out"
           disabled={signOut.isPending}
           onClick={() => signOut.mutate()}
         >
           <Icon name="logout" size={17} />
-        </button>
+        </Button>
       </div>
       {signOut.isError ? (
-        <p role="alert" className="form-error">
+        <p role="alert" className="text-[12px] text-destructive">
           Could not sign out. Try again.
         </p>
       ) : null}

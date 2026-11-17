@@ -52,7 +52,7 @@ Changing a row here requires an ADR and the owner's agreement. Do **not** swap a
 | Background jobs | APScheduler, in-process, single instance |
 | Package managers | `uv` (Python) / `pnpm` (Node) |
 | Web | Next.js 15 App Router + TypeScript (strict) |
-| Styling | Tailwind CSS for layout utilities; the Daymark interface is hand-written CSS over the tokens in spec 0002 |
+| Styling | Tailwind CSS utilities + shadcn/ui primitives, both themed by the Daymark tokens in spec 0002 |
 | Client state | zustand — UI state only |
 | Server state | TanStack Query v5 — the only data-fetching path |
 | Charts | none yet |
@@ -62,7 +62,7 @@ Changing a row here requires an ADR and the owner's agreement. Do **not** swap a
 | Tests | pytest + pytest-asyncio + httpx (API) / TypeScript typecheck (web, no runner yet) |
 | Mobile (Phase 2) | React Native + Expo |
 
-**Never introduce**: Redux, Prisma, TypeORM, GraphQL, tRPC, Server Actions that write to the DB, Sentry (revisit in Phase 3), a component or icon library, a webfont, a dark theme, or any second visual language alongside the Daymark one.
+**Never introduce**: Redux, Prisma, TypeORM, GraphQL, tRPC, Server Actions that write to the DB, Sentry (revisit in Phase 3), a component library other than shadcn/ui, an icon package, a webfont, a dark theme, or any second visual language alongside the Daymark one.
 
 ---
 
@@ -131,10 +131,10 @@ Every new directory must belong to one of the above. Do not create directories "
 Consequences that are not negotiable:
 
 - Copy in the preview is final. Rewriting a heading or a helper sentence is a regression, not an improvement.
-- Styling comes from the CSS variables in the spec (`--paper`, `--ink`, `--accent`, `--radius`, …). Do not re-type hex values per component.
-- Icons are inline SVG on a 24×24 viewBox at `stroke-width: 1.65`. No icon package, no emoji standing in for an icon.
-- No component library, no webfont and no dark theme. The only permitted Tailwind usage is alongside these variables, not instead of them.
-- Where the preview is silent (an error, a 404, a loading state), extend it with the documented tokens; do not invent a second visual language.
+- Styling comes from the CSS variables in the spec (`--paper`, `--ink`, `--accent`, `--radius`, …), surfaced to Tailwind through `@theme inline`. Do not re-type hex values per component.
+- Interactive primitives live in `src/components/ui` as shadcn/ui source (Button, Input, Textarea, Label, Card). Keep their variant names so output from `npx shadcn add` stays interchangeable; override the values, not the API. `components.json` is committed for that reason.
+- Icons are the preview's own inline SVG paths on a 24×24 viewBox at `stroke-width: 1.65`. No icon package, no emoji standing in for an icon.
+- No webfont and no dark theme. Where the preview is silent (an error, a 404, a loading state), extend it with the documented tokens; do not invent a second visual language.
 
 ## Commands
 
@@ -173,7 +173,8 @@ The remote is `origin` → `https://github.com/ZhiouZhu2001/Project-Supervision-
 - **Never** force-push `main`, rewrite pushed history, commit `.env` or any secret, commit generated artifacts (`node_modules`, `.next`, `__pycache__`, `.venv`), or bypass hooks with `--no-verify`.
 - **This Windows machine needs `git config http.sslBackend openssl`** — schannel fails to negotiate TLS here. It is already set in the local repo config; do not remove it.
 - **On this Windows machine, build through Docker, not through a local `pnpm install`.** The local pnpm crashes its Rust worker during extraction and leaves packages half-unpacked; the Linux container is unaffected. Local `uv` works fine for the API.
-- **Adding a new route directory requires `docker compose restart web`.** The Windows bind mount does not emit the directory-add events Next's dev watcher needs, so a brand-new route is served by the catch-all redirect until the server restarts. Editing existing files is picked up normally.
+- **Adding a new route directory requires `docker compose restart web`.** The Windows bind mount does not emit the directory-add events Next's dev watcher needs, so a brand-new route is served by the catch-all redirect until the server restarts.
+- **Assume UI edits need `docker compose restart web` too.** The same bind mount means Next's watcher frequently misses host-side changes, and a stale page looks like a bug in your edit. Restart, then reload before concluding anything.
 - **If a push fails for credentials, stop and report it.** Do not invent a token, do not switch the remote to a different protocol, do not ask for a password in a commit message.
 
 A slice counts as delivered only when `git status` is clean and `origin/main` matches `HEAD`.

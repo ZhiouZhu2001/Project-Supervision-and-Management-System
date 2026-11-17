@@ -1,9 +1,13 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import Link from "next/link";
+import { useState } from "react";
+
 import { Icon } from "@/components/icon";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ApiError, createProject, type Project } from "@/lib/api";
 
 export function CreateProjectForm() {
@@ -12,6 +16,7 @@ export function CreateProjectForm() {
   const [startDate, setStartDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Project | null>(null);
+
   const mutation = useMutation({
     mutationFn: createProject,
     onSuccess: async (project) => {
@@ -29,6 +34,7 @@ export function CreateProjectForm() {
       );
     },
   });
+
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -42,11 +48,12 @@ export function CreateProjectForm() {
       ...(startDate ? { start_date: startDate } : {}),
     });
   }
+
   return (
-    <form onSubmit={onSubmit} className="form" aria-busy={mutation.isPending}>
-      <label className="field" htmlFor="project-name">
-        <span>Project name</span>
-        <input
+    <form onSubmit={onSubmit} className="flex flex-col gap-5" aria-busy={mutation.isPending}>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="project-name">Project name</Label>
+        <Input
           id="project-name"
           type="text"
           required
@@ -56,38 +63,49 @@ export function CreateProjectForm() {
           maxLength={60}
           aria-describedby={error ? "create-error" : undefined}
         />
-      </label>
-      <label className="field">
-        <span>
-          Start date<span className="optional">optional</span>
-        </span>
-        <input
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="project-start">
+          Start date
+          <span className="ml-2 text-[11px] font-[400] text-muted-foreground">
+            optional
+          </span>
+        </Label>
+        <Input
+          id="project-start"
           type="date"
           value={startDate}
           onChange={(event) => setStartDate(event.target.value)}
         />
-        <span className="helper">
+        <span className="text-[11px] text-muted-foreground">
           Leave empty to use the current business day.
         </span>
-      </label>
+      </div>
+
       {error ? (
-        <p id="create-error" role="alert" className="form-error">
+        <p id="create-error" role="alert" className="text-[12px] text-destructive">
           {error}
         </p>
       ) : null}
+
       {created ? (
-        <p role="status" className="success">
+        <p role="status" className="flex items-center gap-2 text-[12px] text-sage-ink">
           <Icon name="check" size={16} />
-          <Link href={`/projects/${created.id}`}>
+          <Link href={`/projects/${created.id}`} className="underline underline-offset-4">
             Project created. Open project →
           </Link>
         </p>
       ) : null}
-      <button type="submit" disabled={mutation.isPending} className="button">
+
+      <Button type="submit" disabled={mutation.isPending} className="w-full">
         <Icon name="plus" size={16} />
         {mutation.isPending ? "Creating…" : "Create project"}
-      </button>
-      <p className="helper">A small beginning is still a beginning.</p>
+      </Button>
+
+      <p className="text-[11px] text-muted-foreground">
+        A small beginning is still a beginning.
+      </p>
     </form>
   );
 }

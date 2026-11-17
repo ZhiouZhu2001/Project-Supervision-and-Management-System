@@ -1,5 +1,11 @@
 import type { CSSProperties } from "react";
 
+/**
+ * The preview's icons are hand-drawn 24×24 paths at stroke-width 1.65. Keeping
+ * them as paths (rather than adopting an icon package) is what makes the
+ * screens match the preview exactly; shadcn's components do not depend on any
+ * particular icon set.
+ */
 const paths = {
   today: "M3 10.5 12 3l9 7.5M5 9v11h5v-6h4v6h5V9",
   projects:
@@ -38,6 +44,7 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      className="shrink-0"
       style={style}
     >
       <path d={paths[name]} />
@@ -47,12 +54,15 @@ export function Icon({
 
 export function Brand() {
   return (
-    <span className="brand">
-      <span className="brand-mark">
+    <span className="inline-flex items-center gap-[11px] text-[23px] font-[650] leading-[1.2] tracking-[-0.8px] max-[700px]:text-[21px]">
+      <span className="grid h-[43px] w-[39px] place-items-center rounded-[11px_11px_11px_3px] bg-foreground text-primary-foreground max-[700px]:h-[34px] max-[700px]:w-[31px] max-[700px]:rounded-[8px_8px_8px_2px]">
         <Icon name="book" size={21} />
       </span>
       <span>
-        Daymark<span className="brand-caption">A little proof, every day.</span>
+        Daymark
+        <span className="mt-[6px] block text-[10px] font-[400] tracking-[0.2px] text-muted-foreground max-[700px]:hidden">
+          A little proof, every day.
+        </span>
       </span>
     </span>
   );

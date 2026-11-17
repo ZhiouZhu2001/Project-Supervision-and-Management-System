@@ -60,6 +60,15 @@ Chrome: sidebar 238px fixed, background `#f1f1ea`, 1px `--line` on its right edg
 | Timeline | `timeline-empty`, `project-symbol` | Empty state is a sentence, not a spinner |
 | Login | `login-*` panels | Serif statement, password visibility toggle, inline error |
 
+### Implementation layer
+
+The classes above are the visual contract, not the technique. The shipped implementation expresses them with **Tailwind CSS utilities** over the token variables, and with **shadcn/ui primitives** for the interactive elements (Button, Input, Textarea, Label, Card). The primitives live in `src/components/ui` as copied source, keep shadcn's variant names, and are themed by overriding their values — so `npx shadcn add <component>` drops in something already on-brand, and `components.json` is committed to make that work.
+
+Two consequences worth stating:
+
+- Tailwind classes are allowed to change freely; the rendering is not. Refactoring `px-[46px]` into a spacing token is fine; making the sidebar 240px instead of 238px is a regression.
+- Icons stay the preview's own inline SVG paths. shadcn does not depend on an icon package, and substituting one would change every glyph.
+
 ## Visual direction
 
 Warm paper surfaces, charcoal type, terracotta emphasis and sage supporting surfaces create a quiet, personal workspace. Shared CSS variables own the palette. System sans-serif type handles controls and body copy; an editorial serif is reserved for the login statement and welcome panel. Icons share one vector stroke style. Decorative illustrations have no business meaning and are hidden from assistive technology.
