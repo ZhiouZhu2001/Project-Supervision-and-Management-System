@@ -18,6 +18,9 @@ from datetime import date, timedelta
 
 WINDOW_DAYS = 400
 
+# R11: the flame appears at exactly this many consecutive days.
+FLAME_THRESHOLD = 7
+
 
 def window_start(today: date) -> date:
     """Oldest day that can still contribute to a streak.

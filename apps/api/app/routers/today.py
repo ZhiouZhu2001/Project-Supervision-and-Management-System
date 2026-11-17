@@ -9,9 +9,9 @@ from app.db import get_session
 from app.deps import CurrentAccount
 from app.models.log import Log
 from app.models.project import Project
-from app.schemas.today import LoggedEntry, TodayProject, TodayView
+from app.schemas.today import Flame, LoggedEntry, TodayProject, TodayView
 from app.services.business_day import DAY_CUTOVER_HOUR, today_business_date
-from app.services.streak import current_streak, expected_days, window_start
+from app.services.streak import FLAME_THRESHOLD, current_streak, expected_days, window_start
 
 router = APIRouter(tags=["today"])
 
@@ -46,11 +46,15 @@ async def today(
         if business_date == current:
             latest[project_id] = LoggedEntry(id=log_id, content=content)
 
-    return TodayView(
-        business_date=current,
-        timezone="Europe/Madrid",
-        cutover_hour=DAY_CUTOVER_HOUR,
-        projects=[
+    entries: list[TodayProject] = []
+    flame: Flame | None = None
+    for project in projects:
+        streak = current_streak(
+            expected_days(max(project.counting_from, start), current),
+            checked.get(project.id, set()),
+            current,
+        )
+        entries.append(
             TodayProject(
                 id=project.id,
                 name=project.name,
@@ -58,12 +62,17 @@ async def today(
                 color=project.color,
                 recorded=project.id in latest,
                 last_log=latest.get(project.id),
-                current_streak=current_streak(
-                    expected_days(max(project.counting_from, start), current),
-                    checked.get(project.id, set()),
-                    current,
-                ),
+                current_streak=streak,
             )
-            for project in projects
-        ],
+        )
+        # R11: the flame belongs to the best streak, not to the sum.
+        if streak >= FLAME_THRESHOLD and (flame is None or streak > flame.streak):
+            flame = Flame(streak=streak, project_name=project.name)
+
+    return TodayView(
+        business_date=current,
+        timezone="Europe/Madrid",
+        cutover_hour=DAY_CUTOVER_HOUR,
+        projects=entries,
+        flame=flame,
     )

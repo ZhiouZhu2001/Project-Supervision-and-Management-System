@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="mt-[26px] max-[700px]:hidden">
-          <AccountBar />
+          <AccountBar flame={today?.flame ?? null} />
         </div>
       </aside>
 

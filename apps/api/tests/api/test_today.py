@@ -126,3 +126,56 @@ async def test_an_unrecorded_today_counts_yesterdays_run(
 
     assert body["projects"][0]["recorded"] is False
     assert body["projects"][0]["current_streak"] == 3
+
+
+async def test_six_days_does_not_light_the_flame(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    project_id = await _project(client)
+    await _backdate_and_log(session_factory, project_id, [5, 4, 3, 2, 1, 0])
+
+    body = (await client.get(TODAY)).json()
+
+    assert body["projects"][0]["current_streak"] == 6
+    assert body["flame"] is None
+
+
+async def test_seven_days_lights_the_flame(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    project_id = await _project(client, "Write a little")
+    await _backdate_and_log(session_factory, project_id, [6, 5, 4, 3, 2, 1, 0])
+
+    body = (await client.get(TODAY)).json()
+
+    assert body["flame"] == {"streak": 7, "project_name": "Write a little"}
+
+
+async def test_the_flame_belongs_to_the_longest_streak(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    shorter = await _project(client, "Shorter")
+    longer = await _project(client, "Longer")
+    await _backdate_and_log(session_factory, shorter, [6, 5, 4, 3, 2, 1, 0])
+    await _backdate_and_log(session_factory, longer, [8, 7, 6, 5, 4, 3, 2, 1, 0])
+
+    body = (await client.get(TODAY)).json()
+
+    assert body["flame"] == {"streak": 9, "project_name": "Longer"}
+
+
+async def test_a_break_puts_the_flame_out(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    project_id = await _project(client)
+    # A good run, then a gap yesterday, then a single day today.
+    await _backdate_and_log(session_factory, project_id, [6, 5, 4, 3, 2, 0])
+
+    body = (await client.get(TODAY)).json()
+
+    assert body["projects"][0]["current_streak"] == 1
+    assert body["flame"] is None

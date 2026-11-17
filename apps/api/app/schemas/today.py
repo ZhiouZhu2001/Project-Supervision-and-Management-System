@@ -19,6 +19,13 @@ class TodayProject(BaseModel):
     current_streak: int
 
 
+class Flame(BaseModel):
+    """R11: the best current streak across active projects, once it is worth showing."""
+
+    streak: int
+    project_name: str
+
+
 class TodayView(BaseModel):
     """What the client is allowed to know about "now".
 
@@ -30,3 +37,4 @@ class TodayView(BaseModel):
     timezone: str
     cutover_hour: int
     projects: list[TodayProject]
+    flame: Flame | None

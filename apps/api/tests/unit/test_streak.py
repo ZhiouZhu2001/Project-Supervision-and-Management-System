@@ -85,3 +85,13 @@ def test_longest_streak_keeps_the_best_run() -> None:
 
 def test_longest_streak_of_nothing_is_zero() -> None:
     assert longest_streak(expected_days(day(0), day(0)), set()) == 0
+
+
+def test_longest_streak_survives_a_later_break() -> None:
+    # Five good days, then nothing. The current streak is 0, but the record
+    # of what was achieved must not disappear (R6).
+    days = expected_days(day(-10), day(0))
+    checked = {day(-10), day(-9), day(-8), day(-7), day(-6)}
+
+    assert current_streak(days, checked, day(0)) == 0
+    assert longest_streak(days, checked) == 5

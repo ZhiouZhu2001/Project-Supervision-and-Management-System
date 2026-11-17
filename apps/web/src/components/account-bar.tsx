@@ -6,9 +6,9 @@ import { useEffect } from "react";
 
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
-import { ApiError, logout, me } from "@/lib/api";
+import { ApiError, logout, me, type Flame } from "@/lib/api";
 
-export function AccountBar() {
+export function AccountBar({ flame = null }: { flame?: Flame | null }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: account, error } = useQuery({
@@ -42,8 +42,17 @@ export function AccountBar() {
           {initial}
         </span>
         <div className="flex min-w-0 flex-col leading-[1.35]">
-          <strong className="truncate text-[12px] font-[600] text-foreground">
+          <strong className="flex items-center gap-[6px] truncate text-[12px] font-[600] text-foreground">
             {account?.display_name ?? "Owner"}
+            {flame ? (
+              <span
+                title={`${flame.project_name} · ${flame.streak} days in a row`}
+                aria-label={`${flame.streak} day streak on ${flame.project_name}`}
+                className="whitespace-nowrap text-[11px] font-[600] text-accent-foreground"
+              >
+                🔥 {flame.streak}
+              </span>
+            ) : null}
           </strong>
           <span className="truncate text-[11px] text-muted-foreground">
             {error ? "Account unavailable" : (account?.email ?? "Loading account…")}
