@@ -82,7 +82,7 @@ UI UX Pro Max searches informed the flat product-interface direction, restrained
 | Screen | Primary action | Supporting content |
 | --- | --- | --- |
 | Login | Sign in | Password visibility, inline authentication error, private-owner explanation |
-| Today | Create the first project / open a project | Active projects, truthful not-recorded state, short product rules |
+| Today | Save a log | Quick log panel above the project list (project, body), per-project recorded state, short product rules |
 | Projects | Create project | Status groups, editable project links, accessible up/down ordering |
 | Project detail | Save changes | Name, optional note, colour, immutable start information, empty log timeline |
 
@@ -100,7 +100,7 @@ Creation remains inline on the project list to preserve the working API flow. Ac
 | Settings | Email/account, global rest days, read-only Madrid timezone and 21:00 alert time | 10, 25–29 |
 | Statistics | Four API-owned metrics; null values shown as a dash | 23–24 |
 
-The current screen does not show calendar placeholders, fabricated streaks, disabled navigation to missing routes or forms that pretend to save logs. Future quick-log placement takes precedence over the introductory welcome panel once recording works.
+The current screen does not show calendar placeholders, fabricated streaks, disabled navigation to missing routes or forms that pretend to save logs. As specified, the quick log now occupies the space the introductory welcome panel used: once recording works, recording outranks the introduction.
 
 ## Interaction and accessibility
 

@@ -1,6 +1,21 @@
 from datetime import date
+from uuid import UUID
 
 from pydantic import BaseModel
+
+
+class LoggedEntry(BaseModel):
+    id: UUID
+    content: str
+
+
+class TodayProject(BaseModel):
+    id: UUID
+    name: str
+    note: str | None
+    color: str | None
+    recorded: bool
+    last_log: LoggedEntry | None
 
 
 class TodayView(BaseModel):
@@ -13,3 +28,4 @@ class TodayView(BaseModel):
     business_date: date
     timezone: str
     cutover_hour: int
+    projects: list[TodayProject]

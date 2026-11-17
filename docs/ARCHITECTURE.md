@@ -308,7 +308,7 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `POST` | `/auth/logout` | Deletes the current session |
 | `POST` | `/auth/logout-all` | Deletes every session for the account |
 | `GET` | `/auth/me` | Account + flame data |
-| `GET` | `/today` | The server's current business date, timezone and cutover hour. Ticket 07 adds the day's project cards to this response. |
+| `GET` | `/today` | The server's current business date, timezone, cutover hour, and every active project with its recorded state and latest entry |
 | `GET` | `/projects` | List, filterable by `status`, includes `current_streak` and `longest_streak` |
 | `POST` | `/projects` | `{name, start_date?, note?, rest_weekdays?}` |
 | `GET` | `/projects/:id` | Detail + rates + schedule rule + status history |

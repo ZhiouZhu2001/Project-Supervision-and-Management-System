@@ -27,6 +27,10 @@ services:
     volumes:
       - ./apps/api/app:/app/app:ro
       - ./apps/api/tests:/app/tests:ro
+      # Without these two, a new migration exists on the host but not in the
+      # container, and startup migrates to a version that is not the latest.
+      - ./apps/api/alembic:/app/alembic:ro
+      - ./apps/api/alembic.ini:/app/alembic.ini:ro
 
   web:
     build:
