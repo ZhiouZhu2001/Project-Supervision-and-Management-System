@@ -1,60 +1,63 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-
-import { ApiError, logout, me, type Account } from "@/lib/api";
+import { useEffect } from "react";
+import { ApiError, logout, me } from "@/lib/api";
+import { Icon } from "@/components/icon";
 
 export function AccountBar() {
   const router = useRouter();
-  const [account, setAccount] = useState<Account | null>(null);
-  const [failed, setFailed] = useState(false);
-
+  const queryClient = useQueryClient();
+  const { data: account, error } = useQuery({
+    queryKey: ["account"],
+    queryFn: me,
+    retry: false,
+  });
   useEffect(() => {
-    let cancelled = false;
-    me()
-      .then((value) => {
-        if (!cancelled) setAccount(value);
-      })
-      .catch((cause: unknown) => {
-        if (cancelled) return;
-        // A cookie can exist while the session behind it is gone — the API is
-        // the authority, so a 401 sends the user to the login page.
-        if (cause instanceof ApiError && cause.status === 401) {
-          router.replace("/login");
-          return;
-        }
-        setFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
-
-  async function onSignOut() {
-    await logout().catch(() => undefined);
-    router.replace("/login");
-    router.refresh();
-  }
-
-  if (failed) {
-    return <span className="text-sm text-red-600 dark:text-red-400">Account unavailable</span>;
-  }
-
-  if (account === null) {
-    return <span className="text-sm text-neutral-500">…</span>;
-  }
-
+    if (error instanceof ApiError && error.status === 401)
+      router.replace("/login");
+  }, [error, router]);
+  const signOut = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      queryClient.clear();
+      router.replace("/login");
+      router.refresh();
+    },
+  });
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="text-neutral-600 dark:text-neutral-400">{account.email}</span>
-      <button
-        type="button"
-        onClick={onSignOut}
-        className="rounded-lg border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-      >
-        Sign out
-      </button>
+    <div>
+      <div className="account">
+        <span className="avatar" aria-hidden="true">
+          {(account?.display_name ?? account?.email ?? "O")
+            .slice(0, 1)
+            .toUpperCase()}
+        </span>
+        <div className="account-copy">
+          <strong>{account?.display_name ?? "Owner"}</strong>
+          <span>
+            {error
+              ? "Account unavailable"
+              : (account?.email ?? "Loading account…")}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Sign out"
+          title="Sign out"
+          disabled={signOut.isPending}
+          onClick={() => signOut.mutate()}
+        >
+          <Icon name="logout" size={17} />
+        </button>
+      </div>
+      {signOut.isError ? (
+        <p role="alert" className="form-error">
+          Could not sign out. Try again.
+        </p>
+      ) : null}
     </div>
   );
 }

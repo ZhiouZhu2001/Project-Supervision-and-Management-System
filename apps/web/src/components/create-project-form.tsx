@@ -2,93 +2,92 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-
-import { ApiError, createProject } from "@/lib/api";
+import Link from "next/link";
+import { Icon } from "@/components/icon";
+import { ApiError, createProject, type Project } from "@/lib/api";
 
 export function CreateProjectForm() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [error, setError] = useState<string | null>(null);
-
+  const [created, setCreated] = useState<Project | null>(null);
   const mutation = useMutation({
     mutationFn: createProject,
-    onSuccess: async () => {
+    onSuccess: async (project) => {
       setName("");
       setStartDate("");
       setError(null);
-      // The list and the today view both read ["projects"]; one invalidation
-      // refreshes both without a manual reload.
+      setCreated(project);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
     onError: (cause: unknown) => {
-      if (cause instanceof ApiError) {
-        // The code is shown, not hidden: this is a one-person tool, and a
-        // generic "try again" costs a round trip to diagnose.
-        setError(
-          cause.code === "VALIDATION_ERROR"
-            ? "A project needs a name of 1–60 characters."
-            : `Could not create the project (${cause.code}).`,
-        );
-        return;
-      }
-      setError("Could not create the project. Try again.");
+      setError(
+        cause instanceof ApiError && cause.code === "VALIDATION_ERROR"
+          ? "A project needs a name of 1–60 characters and a valid start date."
+          : "Could not create the project. Try again.",
+      );
     },
   });
-
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = name.trim();
-    if (trimmed.length === 0) {
+    setError(null);
+    setCreated(null);
+    if (!name.trim()) {
       setError("A project needs a name.");
       return;
     }
     mutation.mutate({
-      name: trimmed,
+      name: name.trim(),
       ...(startDate ? { start_date: startDate } : {}),
     });
   }
-
   return (
-    <form
-      onSubmit={onSubmit}
-      className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800"
-    >
-      <h2 className="text-sm font-medium text-neutral-500">New project</h2>
-
-      <input
-        type="text"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="What are you going to keep doing?"
-        maxLength={60}
-        className="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700"
-      />
-
-      <label className="flex items-center gap-2 text-xs text-neutral-500">
-        <span className="w-20 shrink-0">Start date</span>
+    <form onSubmit={onSubmit} className="form" aria-busy={mutation.isPending}>
+      <label className="field" htmlFor="project-name">
+        <span>Project name</span>
+        <input
+          id="project-name"
+          type="text"
+          required
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="e.g. Read a little every day"
+          maxLength={60}
+          aria-describedby={error ? "create-error" : undefined}
+        />
+      </label>
+      <label className="field">
+        <span>
+          Start date<span className="optional">optional</span>
+        </span>
         <input
           type="date"
           value={startDate}
           onChange={(event) => setStartDate(event.target.value)}
-          className="rounded-lg border border-neutral-300 bg-transparent px-2 py-1 outline-none focus:border-neutral-500 dark:border-neutral-700"
         />
-        <span className="text-neutral-400">leave empty for today</span>
+        <span className="helper">
+          Leave empty to use the current business day.
+        </span>
       </label>
-
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p id="create-error" role="alert" className="form-error">
           {error}
         </p>
       ) : null}
-
-      <button
-        type="submit"
-        disabled={mutation.isPending}
-        className="self-start rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900"
-      >
-        {mutation.isPending ? "Adding…" : "Add project"}
+      {created ? (
+        <p role="status" className="success">
+          <Icon name="check" size={16} />
+          <Link href={`/projects/${created.id}`}>
+            Project created. Open project →
+          </Link>
+        </p>
+      ) : null}
+      <button type="submit" disabled={mutation.isPending} className="button">
+        <Icon name="plus" size={16} />
+        {mutation.isPending ? "Creating…" : "Create project"}
       </button>
+      <p className="helper">A small beginning is still a beginning.</p>
     </form>
   );
 }

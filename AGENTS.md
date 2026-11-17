@@ -52,7 +52,7 @@ Changing a row here requires an ADR and the owner's agreement. Do **not** swap a
 | Background jobs | APScheduler, in-process, single instance |
 | Package managers | `uv` (Python) / `pnpm` (Node) |
 | Web | Next.js 15 App Router + TypeScript (strict) |
-| Styling | Tailwind CSS + shadcn/ui |
+| Styling | Tailwind CSS for layout utilities; the Daymark interface is hand-written CSS over the tokens in spec 0002 |
 | Client state | zustand — UI state only |
 | Server state | TanStack Query v5 — the only data-fetching path |
 | Charts | none yet |
@@ -62,7 +62,7 @@ Changing a row here requires an ADR and the owner's agreement. Do **not** swap a
 | Tests | pytest + pytest-asyncio + httpx (API) / TypeScript typecheck (web, no runner yet) |
 | Mobile (Phase 2) | React Native + Expo |
 
-**Never introduce**: Redux, Prisma, TypeORM, GraphQL, tRPC, Server Actions that write to the DB, Sentry (revisit in Phase 3), a second design system alongside shadcn, or any CRUD scaffold generator.
+**Never introduce**: Redux, Prisma, TypeORM, GraphQL, tRPC, Server Actions that write to the DB, Sentry (revisit in Phase 3), a component or icon library, a webfont, a dark theme, or any second visual language alongside the Daymark one.
 
 ---
 
