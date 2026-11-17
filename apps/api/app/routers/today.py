@@ -11,6 +11,7 @@ from app.models.log import Log
 from app.models.project import Project
 from app.schemas.today import LoggedEntry, TodayProject, TodayView
 from app.services.business_day import DAY_CUTOVER_HOUR, today_business_date
+from app.services.streak import current_streak, expected_days, window_start
 
 router = APIRouter(tags=["today"])
 
@@ -21,6 +22,7 @@ async def today(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> TodayView:
     current = today_business_date()
+    start = window_start(current)
 
     projects = list(
         await db.scalars(
@@ -30,18 +32,19 @@ async def today(
         )
     )
 
-    logs = list(
-        await db.scalars(
-            select(Log)
-            .where(Log.business_date == current, Log.deleted_at.is_(None))
-            .order_by(Log.created_at)
-        )
+    # One query for the whole window: streaks are computed in memory from
+    # these sets, never with a query per project.
+    rows = await db.execute(
+        select(Log.project_id, Log.id, Log.business_date, Log.content, Log.created_at)
+        .where(Log.deleted_at.is_(None), Log.business_date >= start, Log.business_date <= current)
+        .order_by(Log.created_at)
     )
-
-    # Ordered by created_at, so the last assignment is the most recent entry.
-    latest: dict[UUID, Log] = {}
-    for entry in logs:
-        latest[entry.project_id] = entry
+    checked: dict[UUID, set] = {}
+    latest: dict[UUID, LoggedEntry] = {}
+    for project_id, log_id, business_date, content, _created in rows:
+        checked.setdefault(project_id, set()).add(business_date)
+        if business_date == current:
+            latest[project_id] = LoggedEntry(id=log_id, content=content)
 
     return TodayView(
         business_date=current,
@@ -54,10 +57,11 @@ async def today(
                 note=project.note,
                 color=project.color,
                 recorded=project.id in latest,
-                last_log=(
-                    LoggedEntry(id=latest[project.id].id, content=latest[project.id].content)
-                    if project.id in latest
-                    else None
+                last_log=latest.get(project.id),
+                current_streak=current_streak(
+                    expected_days(max(project.counting_from, start), current),
+                    checked.get(project.id, set()),
+                    current,
                 ),
             )
             for project in projects

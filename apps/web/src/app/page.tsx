@@ -132,17 +132,22 @@ export default function TodayPage() {
                           : (project.note ?? "Ready for your next small step.")}
                       </p>
                     </div>
-                    <span
-                      className={cn(
-                        "ml-auto inline-flex items-center gap-[6px] whitespace-nowrap rounded-[5px] px-[9px] py-[5px] text-[10px] font-[550]",
-                        project.recorded
-                          ? "bg-sage text-sage-ink"
-                          : "bg-pill text-pill-ink",
-                      )}
-                    >
-                      <Icon name={project.recorded ? "check" : "clock"} size={12} />
-                      {project.recorded ? "Recorded" : "Not recorded"}
-                    </span>
+                    <div className="ml-auto flex shrink-0 flex-col items-end gap-1">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-[6px] whitespace-nowrap rounded-[5px] px-[9px] py-[5px] text-[10px] font-[550]",
+                          project.recorded ? "bg-sage text-sage-ink" : "bg-pill text-pill-ink",
+                        )}
+                      >
+                        <Icon name={project.recorded ? "check" : "clock"} size={12} />
+                        {project.recorded ? "Recorded" : "Not recorded"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {project.current_streak === 0
+                          ? "No streak yet"
+                          : `${project.current_streak}-day streak`}
+                      </span>
+                    </div>
                   </Link>
                 </li>
               ))}

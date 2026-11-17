@@ -16,6 +16,7 @@ class TodayProject(BaseModel):
     color: str | None
     recorded: bool
     last_log: LoggedEntry | None
+    current_streak: int
 
 
 class TodayView(BaseModel):
