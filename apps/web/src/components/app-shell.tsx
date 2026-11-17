@@ -1,10 +1,12 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { AccountBar } from "@/components/account-bar";
 import { Brand, Icon } from "@/components/icon";
+import { getToday } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -14,6 +16,9 @@ const NAV = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // The single source of "today". Rendered, never recomputed: the owner needs
+  // to see which day the system thinks it is, especially at 02:00.
+  const { data: today } = useQuery({ queryKey: ["today"], queryFn: getToday, staleTime: 60_000 });
 
   return (
     <div className="min-h-dvh">
@@ -99,8 +104,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {pathname.startsWith("/projects") ? "Projects" : "Today"}
             </strong>
           </span>
-          <span className="inline-flex items-center gap-[6px]">
-            <Icon name="lock" size={13} /> Only you
+          <span className="inline-flex items-center gap-[10px]">
+            {today ? (
+              <span
+                title="Current business day"
+                data-business-date={today.business_date}
+                className="tabular-nums"
+              >
+                {today.business_date}
+              </span>
+            ) : null}
+            <span className="opacity-40">·</span>
+            <span className="inline-flex items-center gap-[6px]">
+              <Icon name="lock" size={13} /> Only you
+            </span>
           </span>
         </header>
 

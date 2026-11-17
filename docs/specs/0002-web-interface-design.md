@@ -21,6 +21,8 @@ The repository requires English copy. There is no registration or password-reset
 
 Where the preview shows a state, that state is required. Where the preview is silent — an error message, a 404, a loading skeleton — extend it using the values in this document rather than inventing a new visual language, and prefer plain text over a new component.
 
+**One deliberate addition.** The workspace header carries the server's current business date, immediately left of the "Only you" label (`2026-11-17 · Only you`). The preview has no slot for it, but the whole product is defined by a boundary the owner cannot otherwise see, and at 02:00 the difference between "today" and "yesterday" is not guessable. It is rendered at the header's existing 12px muted size so it reads as metadata rather than as a new element.
+
 ### Design tokens
 
 ```css

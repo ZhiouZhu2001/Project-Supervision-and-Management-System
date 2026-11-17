@@ -1,6 +1,13 @@
 from datetime import UTC, date, datetime, timedelta
 
-from app.services.business_day import business_date_for, business_day_bounds
+import pytest
+
+from app.services.business_day import (
+    BusinessDateError,
+    business_date_for,
+    business_day_bounds,
+    validate_business_date,
+)
 
 
 def test_just_before_the_cutover_belongs_to_the_previous_day() -> None:
@@ -44,3 +51,26 @@ def test_a_spring_forward_instant_still_lands_on_the_right_day() -> None:
     instant = datetime(2026, 3, 29, 3, 0, tzinfo=UTC)
 
     assert business_date_for(instant) == date(2026, 3, 29)
+
+
+def test_today_is_accepted_by_the_shared_validation() -> None:
+    today = date(2026, 11, 17)
+
+    assert validate_business_date(today, today=today) == today
+
+
+def test_a_past_date_is_accepted_by_the_shared_validation() -> None:
+    today = date(2026, 11, 17)
+
+    assert validate_business_date(today - timedelta(days=3), today=today) == today - timedelta(
+        days=3
+    )
+
+
+def test_a_future_date_is_rejected_with_a_stable_code() -> None:
+    today = date(2026, 11, 17)
+
+    with pytest.raises(BusinessDateError) as raised:
+        validate_business_date(today + timedelta(days=1), today=today)
+
+    assert raised.value.code == "BUSINESS_DATE_IN_FUTURE"

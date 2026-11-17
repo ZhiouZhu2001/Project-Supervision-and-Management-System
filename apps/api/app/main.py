@@ -13,6 +13,7 @@ from app.db import check_database, dispose_engine, get_session_factory
 from app.errors import ApiError, api_error_handler, error_body
 from app.routers.auth import router as auth_router
 from app.routers.projects import router as projects_router
+from app.routers.today import router as today_router
 
 
 @asynccontextmanager
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix="/api")
     app.include_router(projects_router, prefix="/api")
+    app.include_router(today_router, prefix="/api")
 
     @app.get("/api/healthz", tags=["ops"])
     async def healthz() -> JSONResponse:
