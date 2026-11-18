@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.models.schedule import ScheduleRule
 from app.models.status import ProjectStatusChange
 from app.services.business_day import today_business_date
+from app.services.streak_inputs import streaks_for
 from tests.conftest import ACCOUNT_EMAIL, ACCOUNT_PASSWORD
 
 STATS = "/api/stats"
@@ -204,3 +205,47 @@ async def test_the_longest_streak_outlives_any_lookback_window(
     body = (await client.get(f"{PROJECTS}/{project_id}/stats")).json()
 
     assert body["longest_streak"] == 6
+
+async def test_a_finished_project_keeps_the_streak_it_had(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """R10: "the streak is frozen permanently", so tomorrow must not recompute it.
+
+    Finishing is dated tomorrow so the finish day still counts as expected;
+    today is therefore unrecorded and would become a miss, resetting the number
+    to zero the day after finishing. A frozen streak reads the state at the
+    finish day instead.
+    """
+    await _login(client)
+    project_id = await _project(client, "Finished but proud")
+    today = today_business_date()
+    started = today - timedelta(days=6)
+
+    async with session_factory() as session:
+        session.add(ScheduleRule(project_id=None, rest_weekdays=[], effective_from=started))
+        project = await session.get(Project, UUID(project_id))
+        assert project is not None
+        project.start_date = started
+        project.created_business_date = started
+        for offset in range(1, 5):
+            session.add(
+                Log(
+                    project_id=UUID(project_id),
+                    business_date=today - timedelta(days=offset),
+                    content="done",
+                    backfilled=False,
+                )
+            )
+        await session.commit()
+
+    await client.patch(f"{PROJECTS}/{project_id}/status", json={"status": "finished"})
+
+    # Today, the endpoint still agrees with the four recorded days.
+    assert (await client.get(f"{PROJECTS}/{project_id}/stats")).json()["current_streak"] == 4
+
+    async with session_factory() as session:
+        project = await session.get(Project, UUID(project_id))
+        assert project is not None
+        frozen = await streaks_for(session, [project], current=today + timedelta(days=2))
+
+    assert frozen[UUID(project_id)].current == 4

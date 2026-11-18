@@ -1,4 +1,4 @@
-"""Assemble the inputs a streak needs, once, for every caller.
+﻿"""Assemble the inputs a streak needs, once, for every caller.
 
 The rule itself lives in `streak.py` (invariant 3). This module is the only
 place that decides *which* days are expected and which count as recorded, so
@@ -6,7 +6,7 @@ the today screen and a project's statistics cannot drift apart.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -70,7 +70,7 @@ def expected_days_for(
     than "missed", which is what lets a streak close over a pause (R14).
     """
     # R6: no lookback window. `longest_streak` never decreases, so it has to
-    # see every expected day the project ever had — a bounded window silently
+    # see every expected day the project ever had â€” a bounded window silently
     # truncated the record. The cost is bounded by the project's own age.
     start = project.counting_from
 
@@ -83,6 +83,21 @@ def expected_days_for(
         for day in expected_days(start, current, rest_for=rest_on)
         if status_on(day, history) == "active"
     ]
+
+
+def streak_reference_day(project: Project, history, *, today: date) -> date:
+    """The day whose streak counts as "current" (R10).
+
+    Finishing is dated the next business day so the finish day still counts as
+    an expected day â€” a record may not shrink because of an administrative act.
+    But that leaves the finish day unrecorded, so recomputing later would turn
+    it into a miss and reset a number R10 says is frozen permanently. A
+    finished project therefore reads its streak at the finish day itself.
+    """
+    for effective_from, status in reversed(history):
+        if status == "finished":
+            return min(today, effective_from - timedelta(days=1))
+    return today
 
 
 async def streaks_for(
@@ -98,16 +113,19 @@ async def streaks_for(
 
     result: dict[UUID, StreakPair] = {}
     for project in projects:
+        history = status_rules.get(project.id, [])
+        reference = streak_reference_day(project, history, today=current)
         days = expected_days_for(
             project,
-            current=current,
+            current=reference,
             global_rules=global_rules,
             overrides=by_project.get(project.id, []),
-            history=status_rules.get(project.id, []),
+            history=history,
         )
         recorded = checked.get(project.id, set())
         result[project.id] = StreakPair(
-            current=current_streak(days, recorded, current),
+            current=current_streak(days, recorded, reference),
             longest=longest_streak(days, recorded),
         )
     return result
+
