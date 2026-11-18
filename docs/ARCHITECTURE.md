@@ -324,6 +324,7 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `POST` | `/projects/:id/restore` | Undo a soft delete within thirty days, with logs and streak intact |
 | `POST` | `/projects/:id/restore` | Undo soft delete within 30 days |
 | `GET` | `/logs` | `?from&to&project_id&limit&cursor`, ordered `business_date DESC` |
+| `GET` | `/logs/backfill-status` | `?project_id&business_date` → backfills remaining for that project and day |
 | `POST` | `/logs` | `{project_id, business_date, content, duration_minutes?, tags?, client_id?}`; server derives `backfilled` |
 | `PATCH` | `/logs/:id` | Body, duration, tags only — **not** `business_date` or `project_id` |
 | `DELETE` | `/logs/:id` | Soft delete |
