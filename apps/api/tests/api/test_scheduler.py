@@ -219,3 +219,34 @@ async def test_the_database_records_every_judgement(
         )
 
     assert statuses == ["sent", "no_misses"]
+
+async def test_a_restart_after_midnight_still_judges_the_business_day(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """At 00:30 the business day is still yesterday, and its 21:00 has passed.
+
+    Judging by the wall clock's hour would skip the day entirely and leave it
+    unjudged until the following evening.
+    """
+    await _login(client)
+    await _project(client, "Evening")
+    today = today_business_date()
+    await _no_rest_days(session_factory, today)
+    mailer = RecordingMailer()
+    after_midnight = datetime.combine(today + timedelta(days=1), time(0, 30), tzinfo=MADRID).astimezone(
+        UTC
+    )
+
+    handled = await catch_up(
+        session_factory=session_factory,
+        mailer=mailer,
+        to="o@example.com",
+        base_url=BASE_URL,
+        at=after_midnight,
+    )
+
+    assert handled is True
+    assert len(mailer.sent) == 1
+    async with session_factory() as session:
+        judged = await session.scalar(select(AlertLog.business_date))
+    assert judged == today

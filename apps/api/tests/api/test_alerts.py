@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from uuid import UUID
 
@@ -20,9 +21,29 @@ LOGS = "/api/logs"
 BASE_URL = "http://localhost:8080"
 
 
-class BrokenMailer:
+class CountingBrokenMailer:
+    """Always fails, and counts how hard it was asked to try."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
     def send(self, *, to: str, subject: str, body: str) -> None:
+        self.calls += 1
         raise OSError("smtp is down")
+
+
+class FlakyMailer:
+    """Fails the first two attempts, then succeeds (R12's retry path)."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.bodies: list[str] = []
+
+    def send(self, *, to: str, subject: str, body: str) -> None:
+        self.calls += 1
+        if self.calls < 3:
+            raise OSError("temporary smtp failure")
+        self.bodies.append(body)
 
 
 async def _login(client: httpx.AsyncClient) -> None:
@@ -197,10 +218,16 @@ async def test_a_mail_failure_is_recorded_and_swallowed(
     await _project(client, "Write a little")
     today = today_business_date()
     await _no_rest_days(session_factory, today)
+    broken = CountingBrokenMailer()
 
     async with session_factory() as session:
         report = await run_digest(
-            session, BrokenMailer(), to="o@example.com", current=today, base_url=BASE_URL
+            session,
+            broken,
+            to="o@example.com",
+            current=today,
+            base_url=BASE_URL,
+            backoff_seconds=0,
         )
         row = await session.scalar(select(AlertLog))
 
@@ -228,3 +255,82 @@ async def test_paused_projects_do_not_count_as_missed_even_on_a_workday(
 
     assert report.status == "no_misses"
     assert mailer.sent == []
+
+async def test_a_transient_mail_failure_is_retried_until_it_sends(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    await _project(client, "Write a little")
+    today = today_business_date()
+    await _no_rest_days(session_factory, today)
+    flaky = FlakyMailer()
+
+    async with session_factory() as session:
+        report = await run_digest(
+            session,
+            flaky,
+            to="o@example.com",
+            current=today,
+            base_url=BASE_URL,
+            backoff_seconds=0,
+        )
+        row = await session.scalar(select(AlertLog))
+
+    # R12: three attempts, exponential backoff, then give up. The second
+    # attempt here succeeds, so the day counts as sent, not failed.
+    assert report.status == "sent"
+    assert report.attempts == 3
+    assert flaky.calls == 3
+    assert len(flaky.bodies) == 1
+    assert row is not None and row.status == "sent"
+
+
+async def test_the_digest_gives_up_after_three_attempts(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    await _project(client, "Write a little")
+    today = today_business_date()
+    await _no_rest_days(session_factory, today)
+    broken = CountingBrokenMailer()
+
+    async with session_factory() as session:
+        report = await run_digest(
+            session,
+            broken,
+            to="o@example.com",
+            current=today,
+            base_url=BASE_URL,
+            backoff_seconds=0,
+        )
+
+    assert report.status == "failed"
+    assert report.attempts == 3
+    assert broken.calls == 3
+
+
+async def test_overlapping_runs_send_one_email(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """The idempotency guard is the insert, not a prior read (ARCH 5.5).
+
+    Two runs that both read "no row yet" would both send. Only the run that
+    wins the unique insert may proceed.
+    """
+    await _login(client)
+    await _project(client, "Write a little")
+    today = today_business_date()
+    await _no_rest_days(session_factory, today)
+    mailer = RecordingMailer()
+
+    async def run() -> str:
+        async with session_factory() as session:
+            report = await run_digest(
+                session, mailer, to="o@example.com", current=today, base_url=BASE_URL
+            )
+            return report.status
+
+    statuses = await asyncio.gather(run(), run())
+
+    assert sorted(statuses) == ["sent", "skipped"]
+    assert len(mailer.sent) == 1

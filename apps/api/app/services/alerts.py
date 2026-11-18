@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import AlertLog
@@ -35,6 +36,13 @@ class AlertReport:
     status: str  # sent | no_misses | failed | skipped
     project_count: int = 0
     detail: str | None = None
+    attempts: int = 0
+
+
+# R12: three attempts with exponential backoff, then give up. The delay is a
+# parameter of run_digest so tests do not sleep through it.
+ATTEMPTS = 3
+BACKOFF_SECONDS = 2.0
 
 
 async def collect_misses(db: AsyncSession, *, current: date, base_url: str) -> list[MissEntry]:
@@ -106,7 +114,7 @@ def render_digest(entries: list[MissEntry], *, current: date) -> tuple[str, str]
         missed = (
             "first missed day" if entry.missed_days <= 1 else f"{entry.missed_days} days in a row"
         )
-        lines.append(f"- {entry.name} — {streak}, {missed}")
+        lines.append(f"- {entry.name} â€” {streak}, {missed}")
         lines.append(f"  {entry.url}")
 
     lines += [
@@ -128,43 +136,101 @@ async def run_digest(
     to: str,
     current: date,
     base_url: str,
+    backoff_seconds: float = BACKOFF_SECONDS,
 ) -> AlertReport:
-    """Send at most one digest per business day (invariant 6)."""
-    existing = await db.scalar(select(AlertLog).where(AlertLog.business_date == current))
-    if existing is not None:
+    """Send at most one digest per business day (invariant 6, R12).
+
+    Idempotency by pre-emption, not by check-then-act (ARCH 5.5): the unique
+    insert is the lock. Two overlapping runs both see "no row yet" in a read,
+    so a read-first design sends twice; here one insert wins and the loser
+    returns without sending.
+    """
+    alert_id = await _claim_business_day(db, current)
+    if alert_id is None:
+        existing = await db.scalar(select(AlertLog).where(AlertLog.business_date == current))
         return AlertReport(
             business_date=current,
             status="skipped",
-            project_count=existing.project_count,
-            detail=f"already judged ({existing.status})",
+            project_count=existing.project_count if existing is not None else 0,
+            detail=f"already judged ({existing.status if existing is not None else 'unknown'})",
         )
 
     entries = await collect_misses(db, current=current, base_url=base_url)
 
     if not entries:
-        db.add(AlertLog(business_date=current, status="no_misses", project_count=0))
-        await db.commit()
+        await _finish(db, alert_id, status="no_misses", project_count=0, detail=None)
         return AlertReport(business_date=current, status="no_misses")
 
     subject, body = render_digest(entries, current=current)
-    try:
-        # SMTP is blocking; the event loop must not wait on a mail server.
-        await asyncio.to_thread(mailer.send, to=to, subject=subject, body=body)
-    except Exception as exc:
-        detail = str(exc)[:1000] or exc.__class__.__name__
-        db.add(
-            AlertLog(
-                business_date=current,
-                status="failed",
-                project_count=len(entries),
-                detail=detail,
-            )
-        )
-        await db.commit()
+    error, attempts = await _send_with_retries(
+        mailer, to=to, subject=subject, body=body, backoff_seconds=backoff_seconds
+    )
+
+    if error is not None:
+        await _finish(db, alert_id, status="failed", project_count=len(entries), detail=error)
         return AlertReport(
-            business_date=current, status="failed", project_count=len(entries), detail=detail
+            business_date=current,
+            status="failed",
+            project_count=len(entries),
+            detail=error,
+            attempts=attempts,
         )
 
-    db.add(AlertLog(business_date=current, status="sent", project_count=len(entries), detail=None))
+    await _finish(db, alert_id, status="sent", project_count=len(entries), detail=None)
+    return AlertReport(
+        business_date=current, status="sent", project_count=len(entries), attempts=attempts
+    )
+
+
+async def _claim_business_day(db: AsyncSession, current: date) -> UUID | None:
+    """Insert this day's judgement row, or return None if it already exists.
+
+    Committed immediately: the row has to be visible to (and conflicting with)
+    any other run before the slow part â€” reading logs, sending mail â€” starts.
+    A crash after this point leaves the day marked `pending`, which is the
+    honest record that a digest was started and its outcome unknown; retrying
+    it automatically would risk the double-send invariant 6 exists to prevent.
+    """
+    alert_id = await db.scalar(
+        insert(AlertLog)
+        .values(business_date=current, status="pending", project_count=0)
+        .on_conflict_do_nothing(index_elements=[AlertLog.business_date])
+        .returning(AlertLog.id)
+    )
     await db.commit()
-    return AlertReport(business_date=current, status="sent", project_count=len(entries))
+    return alert_id
+
+
+async def _finish(
+    db: AsyncSession, alert_id: UUID, *, status: str, project_count: int, detail: str | None
+) -> None:
+    await db.execute(
+        update(AlertLog)
+        .where(AlertLog.id == alert_id)
+        .values(status=status, project_count=project_count, detail=detail)
+    )
+    await db.commit()
+
+
+async def _send_with_retries(
+    mailer, *, to: str, subject: str, body: str, backoff_seconds: float
+) -> tuple[str | None, int]:
+    """R12: three attempts with exponential backoff, then give up quietly.
+
+    Returns the last error (None on success) and the number of attempts made.
+    A digest failure must never raise into the scheduler: the owner not being
+    emailed twice is bad, the whole job dying is worse.
+    """
+    error: str | None = None
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            # SMTP is blocking; the event loop must not wait on a mail server.
+            await asyncio.to_thread(mailer.send, to=to, subject=subject, body=body)
+            return None, attempt
+        except Exception as exc:
+            error = str(exc)[:1000] or exc.__class__.__name__
+            if attempt < ATTEMPTS:
+                await asyncio.sleep(backoff_seconds * 2 ** (attempt - 1))
+    return error, ATTEMPTS
+
+

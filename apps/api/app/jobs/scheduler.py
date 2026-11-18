@@ -6,17 +6,15 @@ race. The catch-up on startup is what makes a restart across 21:00 harmless.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, time
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.clock import now_utc
-from app.models.alert import AlertLog
 from app.services.alerts import run_digest
-from app.services.business_day import MADRID, today_business_date
+from app.services.business_day import MADRID, business_date_for, today_business_date
 
 logger = logging.getLogger("app.scheduler")
 
@@ -55,24 +53,27 @@ async def catch_up(
     base_url: str,
     at: datetime | None = None,
 ) -> bool:
-    """Judge today if 21:00 has passed and nobody judged it yet.
+    """Judge the current business day once 21:00 has passed for it.
 
-    Returns True when a digest was attempted. The `at` parameter exists so the
-    behaviour can be tested without waiting for the evening.
+    Returns True when this call attempted a digest. The target is the current
+    *business* day, whose 21:00 may have been yesterday evening: at 01:00 the
+    business day is still the previous calendar date, and its cut-off has
+    passed. Comparing the wall clock's hour instead would leave that day
+    unjudged until the next evening.
+
+    No "has it been judged?" query here — `run_digest` decides that by winning
+    the unique insert, so the answer cannot go stale between check and send.
     """
-    local = (at or now_utc()).astimezone(MADRID)
-    if local.hour < ALERT_HOUR:
+    instant = at or now_utc()
+    local = instant.astimezone(MADRID)
+    target = business_date_for(instant)
+    cut_off = datetime.combine(target, time(ALERT_HOUR), tzinfo=MADRID)
+    if local < cut_off:
         return False
 
     async with session_factory() as session:
-        existing = await session.scalar(
-            select(AlertLog).where(AlertLog.business_date == today_business_date())
-        )
-        if existing is not None:
-            return False
-
-    await run_alert_job(session_factory=session_factory, mailer=mailer, to=to, base_url=base_url)
-    return True
+        report = await run_digest(session, mailer, to=to, current=target, base_url=base_url)
+    return report.status != "skipped"
 
 
 def build_scheduler(
