@@ -42,12 +42,12 @@ def upgrade() -> None:
         ["project_id", "effective_from"],
     )
 
-    # Existing projects get their first row, dated to when they started, so
-    # their history is complete from the beginning rather than from today.
-    op.execute(
-        "INSERT INTO project_status_change (id, project_id, status, effective_from, created_at) "
-        "SELECT gen_random_uuid(), id, status, created_business_date, now() FROM project"
-    )
+    # No backfill rows here on purpose. A revision changes schema or moves data,
+    # never both (invariant 11): a downgrade that drops the table would take the
+    # history with it. It is also unnecessary — `status_on` resolves a project
+    # with no rows to "active" from the beginning, and R3's `counting_from`
+    # already excludes the days before the project existed. The first row is
+    # written the first time the status actually changes.
 
 
 def downgrade() -> None:
