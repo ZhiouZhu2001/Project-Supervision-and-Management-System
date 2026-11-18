@@ -8,10 +8,39 @@ resolved day by day against the rules that existed then.
 
 from collections.abc import Sequence
 from datetime import date
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.schedule import ScheduleRule
 
 DEFAULT_REST_WEEKDAYS: frozenset[int] = frozenset({6, 7})
 
 RestRule = tuple[date, frozenset[int]]
+
+
+async def load_rules(
+    db: AsyncSession, *, until: date
+) -> tuple[list[RestRule], dict[UUID, list[RestRule]]]:
+    """Rules in force up to `until`, split into the account default and overrides."""
+    rows = list(
+        await db.scalars(
+            select(ScheduleRule)
+            .where(ScheduleRule.effective_from <= until)
+            .order_by(ScheduleRule.effective_from)
+        )
+    )
+
+    global_rules: list[RestRule] = []
+    by_project: dict[UUID, list[RestRule]] = {}
+    for rule in rows:
+        entry: RestRule = (rule.effective_from, frozenset(rule.rest_weekdays))
+        if rule.project_id is None:
+            global_rules.append(entry)
+        else:
+            by_project.setdefault(rule.project_id, []).append(entry)
+    return global_rules, by_project
 
 
 def rest_weekdays_for(

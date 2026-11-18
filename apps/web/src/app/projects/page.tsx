@@ -22,7 +22,8 @@ import {
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   active: "Active",
   paused: "Paused",
-  finished: "Finished",
+  // The status is "finished"; the list it lands in is the completed one.
+  finished: "Completed",
   archived: "Archived",
 };
 

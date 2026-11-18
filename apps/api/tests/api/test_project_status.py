@@ -191,3 +191,60 @@ async def test_status_history_is_not_overwritten(
         )
 
     assert count == 3
+
+
+async def test_finishing_removes_the_project_from_today(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _project(client)
+
+    assert len((await client.get(TODAY)).json()["projects"]) == 1
+    assert (await _status(client, project_id, "finished")).status_code == 200
+
+    assert (await client.get(TODAY)).json()["projects"] == []
+    listed = (await client.get(PROJECTS)).json()
+    assert [project["status"] for project in listed] == ["finished"]
+
+
+async def test_a_finished_project_keeps_its_numbers(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    project_id = await _project(client)
+    await _backdate(session_factory, project_id, 10)
+
+    today = today_business_date()
+    async with session_factory() as session:
+        session.add(
+            ScheduleRule(
+                project_id=None, rest_weekdays=[], effective_from=today - timedelta(days=10)
+            )
+        )
+        for offset in (2, 1, 0):
+            session.add(
+                Log(
+                    project_id=UUID(project_id),
+                    business_date=today - timedelta(days=offset),
+                    content=f"day {offset}",
+                    backfilled=False,
+                )
+            )
+        await session.commit()
+
+    before = (await client.get(f"{PROJECTS}/{project_id}/stats")).json()
+    await _status(client, project_id, "finished")
+    after = (await client.get(f"{PROJECTS}/{project_id}/stats")).json()
+
+    assert before == {"current_streak": 3, "longest_streak": 3}
+    assert after == before
+
+
+async def test_a_finished_project_cannot_be_unfinished(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _project(client)
+    await _status(client, project_id, "finished")
+
+    for target in ("active", "paused"):
+        response = await _status(client, project_id, target)
+        assert response.status_code == 422, target
+
+    assert (await _status(client, project_id, "archived")).status_code == 200

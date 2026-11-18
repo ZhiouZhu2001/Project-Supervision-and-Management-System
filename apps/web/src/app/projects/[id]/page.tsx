@@ -346,8 +346,7 @@ export default function ProjectDetailPage() {
           <p className="flex items-start gap-2 rounded-[10px] bg-[#f3f4ec] px-4 py-3 text-[12px] text-muted-foreground">
             <Icon name="info" size={17} />
             <span>
-              Streaks will appear when recording is available. Every project will have its own
-              streak.
+              Status changes are dated. Changing them today never rewrites a past streak.
             </span>
           </p>
         </aside>

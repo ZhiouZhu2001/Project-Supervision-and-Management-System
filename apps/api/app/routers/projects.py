@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -25,6 +25,7 @@ from app.services.business_day import BusinessDateError, today_business_date, va
 from app.services.retention import RETENTION
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, validate_rest_weekdays
 from app.services.status import can_transition
+from app.services.streak_inputs import streaks_for
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -164,17 +165,39 @@ async def change_status(
             f"A project cannot go from {project.status} to {payload.status}",
         )
 
-    # R14: the change is dated, not overwritten. `project.status` mirrors the
-    # newest row so list queries stay a single scan.
     # R14: appended, never overwritten. A pause and a resume on the same day
     # are two rows; the newest one is the one in force.
-    db.add(ProjectStatusChange(project_id=project_id, status=payload.status, effective_from=today))
+    #
+    # Finishing is also dated tomorrow, so the day it is finished on still
+    # counts as an expected day: a record may never shrink because of an
+    # administrative act. A pause stays dated today, because pausing says
+    # "not now".
+    effective_from = today + timedelta(days=1) if payload.status == "finished" else today
+
+    db.add(
+        ProjectStatusChange(
+            project_id=project_id, status=payload.status, effective_from=effective_from
+        )
+    )
 
     project.status = payload.status
     project.updated_at = now_utc()
     await db.commit()
     await db.refresh(project)
     return ProjectView.model_validate(project)
+
+
+@router.get("/{project_id}/stats")
+async def project_stats(
+    project_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, int]:
+    """The two numbers a finished project keeps for good (R6)."""
+    project = await _load(db, project_id)
+    streaks = await streaks_for(db, [project], current=today_business_date())
+    pair = streaks[project.id]
+    return {"current_streak": pair.current, "longest_streak": pair.longest}
 
 
 async def _latest_rule(
