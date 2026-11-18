@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Today", icon: "today" as const },
   { href: "/projects", label: "Projects", icon: "projects" as const },
+  { href: "/calendar", label: "Calendar", icon: "calendar" as const },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -103,9 +104,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <strong className="font-[600] text-foreground">
               {pathname.startsWith("/settings")
                 ? "Settings"
-                : pathname.startsWith("/projects")
-                  ? "Projects"
-                  : "Today"}
+                : pathname.startsWith("/calendar")
+                  ? "Calendar"
+                  : pathname.startsWith("/projects")
+                    ? "Projects"
+                    : "Today"}
             </strong>
           </span>
           <span className="inline-flex items-center gap-[10px]">

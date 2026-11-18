@@ -329,7 +329,7 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `DELETE` | `/logs/:id` | Soft delete |
 | `POST` | `/logs/:id/attachments` | `multipart/form-data`, ≤ 5 MB each, ≤ 4 per log |
 | `DELETE` | `/attachments/:id` | Soft-delete metadata, delete the file asynchronously |
-| `GET` | `/calendar` | `?month=YYYY-MM` → day cells |
+| `GET` | `/calendar` | `?month=YYYY-MM` (defaults to the current business month) → per-day expected/done counts and a state bucket |
 | `GET` | `/stats` | Four metrics: per-project rates, current + longest streak, 12-week rollup, 30-day log count |
 | `GET` | `/export.json` | Full export: projects, logs, tags, attachment metadata, schedule rules, status changes |
 | `GET` | `/healthz` | Public, unauthenticated: `{db, last_alert_business_date, version}` |
