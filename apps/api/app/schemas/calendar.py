@@ -11,6 +11,11 @@ class CalendarDay(BaseModel):
     expected_count: int
     done_count: int
     state: DayState
+    # R9: a day written later is visible as such, never disguised as prompt.
+    backfilled_count: int = 0
+    # Whether this day is still inside the seven-day window; the client shows
+    # the backfill form from this flag rather than re-deriving the rule.
+    can_backfill: bool = False
 
 
 class CalendarView(BaseModel):

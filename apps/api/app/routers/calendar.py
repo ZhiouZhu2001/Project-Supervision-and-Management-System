@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -14,7 +14,7 @@ from app.models.log import Log
 from app.models.project import Project
 from app.models.schedule import ScheduleRule
 from app.schemas.calendar import CalendarDay, CalendarView
-from app.services.business_day import today_business_date
+from app.services.business_day import backfill_window, today_business_date
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, RestRule, rest_weekdays_for
 
 router = APIRouter(tags=["calendar"])
@@ -52,12 +52,15 @@ def _state(expected: int, done: int, *, is_future: bool) -> str:
 async def read_calendar(
     _account: CurrentAccount,
     db: Annotated[AsyncSession, Depends(get_session)],
-    month: str | None = Query(default=None, description="YYYY-MM; defaults to the current business month"),
+    month: str | None = Query(
+        default=None, description="YYYY-MM; defaults to the current business month"
+    ),
 ) -> CalendarView:
     today = today_business_date()
     month = month or today.strftime("%Y-%m")
 
     start, end = _month_bounds(month)
+    window_start, _window_end = backfill_window(today)
 
     rules = list(
         await db.scalars(
@@ -94,6 +97,18 @@ async def read_calendar(
     )
     logged: set[tuple[UUID, date]] = {(project_id, day) for project_id, day in rows}
 
+    backfilled_rows = await db.execute(
+        select(Log.business_date, func.count())
+        .where(
+            Log.deleted_at.is_(None),
+            Log.backfilled.is_(True),
+            Log.business_date >= start,
+            Log.business_date <= end,
+        )
+        .group_by(Log.business_date)
+    )
+    backfilled_counts: dict[date, int] = {day: count for day, count in backfilled_rows}
+
     days: list[CalendarDay] = []
     cursor = start
     while cursor <= end:
@@ -118,6 +133,8 @@ async def read_calendar(
                 expected_count=expected,
                 done_count=done,
                 state=_state(expected, done, is_future=cursor > today),
+                backfilled_count=backfilled_counts.get(cursor, 0),
+                can_backfill=window_start <= cursor <= today,
             )
         )
         cursor = date.fromordinal(cursor.toordinal() + 1)

@@ -1,11 +1,21 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Icon } from "@/components/icon";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { listLogs, listProjects, type CalendarDay } from "@/lib/api";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ApiError,
+  createLog,
+  getBackfillStatus,
+  listLogs,
+  type CalendarDay,
+} from "@/lib/api";
 
 /**
  * One day, in full. The calendar answers "how did the month go"; this answers
@@ -25,6 +35,33 @@ export function CalendarDayPanel({
     queryKey: ["logs", "day", day?.business_date],
     queryFn: () => listLogs({ from: day?.business_date, to: day?.business_date }),
     enabled: day !== null,
+  });
+
+  const queryClient = useQueryClient();
+  const [projectId, setProjectId] = useState<string>("");
+  const [body, setBody] = useState("");
+  const chosenProject = projectId || projects[0]?.id || "";
+
+  const status = useQuery({
+    queryKey: ["backfill-status", day?.business_date, chosenProject],
+    queryFn: () => getBackfillStatus(chosenProject, day?.business_date ?? ""),
+    enabled: day !== null && day.can_backfill && chosenProject !== "",
+  });
+
+  const backfill = useMutation({
+    mutationFn: () =>
+      createLog({
+        project_id: chosenProject,
+        content: body.trim(),
+        business_date: day?.business_date,
+      }),
+    onSuccess: async () => {
+      setBody("");
+      await queryClient.invalidateQueries({ queryKey: ["logs"] });
+      await queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      await queryClient.invalidateQueries({ queryKey: ["today"] });
+      await queryClient.invalidateQueries({ queryKey: ["backfill-status"] });
+    },
   });
 
   if (day === null) {
@@ -129,6 +166,70 @@ export function CalendarDayPanel({
           </section>
         ))}
       </div>
+      {day.can_backfill ? (
+        <div className="mt-5 border-t border-border pt-4">
+          <h3 className="text-[11px] font-[600] uppercase tracking-[1.2px] text-muted-foreground">
+            Write this day down
+          </h3>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            A backfilled entry fills the day in the calendar. It never repairs a streak.
+          </p>
+
+          <div className="mt-3 flex flex-col gap-2">
+            <Select
+              aria-label="Project"
+              value={chosenProject}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </Select>
+            <Textarea
+              rows={2}
+              maxLength={2000}
+              value={body}
+              placeholder="A few words is enough."
+              aria-label="What did you do?"
+              onChange={(event) => setBody(event.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                size="sm"
+                disabled={
+                  body.trim() === "" ||
+                  backfill.isPending ||
+                  status.data === undefined ||
+                  !status.data.allowed
+                }
+                onClick={() => backfill.mutate()}
+              >
+                {backfill.isPending ? "Saving…" : "Backfill this day"}
+              </Button>
+              {status.data ? (
+                <span role="status" className="text-[11px] text-muted-foreground">
+                  {status.data.remaining} of {status.data.limit} backfills left for this project on
+                  this day
+                </span>
+              ) : null}
+            </div>
+            {backfill.isError ? (
+              <p role="alert" className="text-[11px] text-destructive">
+                {backfill.error instanceof ApiError &&
+                backfill.error.code === "BACKFILL_LIMIT_REACHED"
+                  ? "That day is full for this project — three backfilled entries is the limit."
+                  : backfill.error instanceof ApiError &&
+                      backfill.error.code === "BUSINESS_DATE_TOO_OLD"
+                    ? "That day is older than a week and can no longer be written."
+                    : "Could not save. Try again."}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </Card>
   );
 }

@@ -161,6 +161,12 @@ export default function CalendarPage() {
                       )}
                     >
                       {dayNumber}
+                      {day.backfilled_count > 0 ? (
+                        <span
+                          aria-label="written later"
+                          className="mt-[2px] h-[3px] w-[3px] rounded-full bg-current opacity-70"
+                        />
+                      ) : null}
                     </button>
                   );
                 })}

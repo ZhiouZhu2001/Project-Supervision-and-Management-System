@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import now_utc
@@ -14,7 +14,13 @@ from app.models.log import Log
 from app.models.log_tag import LogTag
 from app.models.project import Project
 from app.schemas.log import LogCreate, LogUpdate, LogView
-from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
+from app.services.business_day import (
+    BACKFILL_MAX_PER_DAY,
+    BusinessDateError,
+    today_business_date,
+    validate_backfill_window,
+    validate_business_date,
+)
 from app.services.retention import RETENTION
 
 router = APIRouter(prefix="/logs", tags=["logs"])
@@ -97,6 +103,7 @@ async def create_log(
 
     try:
         validate_business_date(business_date, today=today)
+        validate_backfill_window(business_date, today=today)
     except BusinessDateError as exc:
         raise ApiError(422, exc.code, exc.message) from exc
 
@@ -109,13 +116,23 @@ async def create_log(
             "A log cannot predate the day the project started counting",
         )
 
+    backfilled = business_date < today  # R9: derived, never supplied by the client.
+    if (
+        backfilled
+        and await _backfilled_count(db, project.id, business_date) >= BACKFILL_MAX_PER_DAY
+    ):
+        raise ApiError(
+            422,
+            "BACKFILL_LIMIT_REACHED",
+            f"At most {BACKFILL_MAX_PER_DAY} backfilled logs per project per business day",
+        )
+
     log = Log(
         project_id=project.id,
         business_date=business_date,
         content=payload.content,
         duration_minutes=payload.duration_minutes,
-        # R9: derived, never supplied by the client.
-        backfilled=business_date < today,
+        backfilled=backfilled,
     )
     db.add(log)
     await db.flush()
@@ -124,6 +141,39 @@ async def create_log(
     await db.refresh(log)
 
     return await _view(db, log)
+
+
+async def _backfilled_count(db: AsyncSession, project_id: UUID, business_date: date) -> int:
+    return (
+        await db.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(
+                Log.project_id == project_id,
+                Log.business_date == business_date,
+                Log.backfilled.is_(True),
+                Log.deleted_at.is_(None),
+            )
+        )
+    ) or 0
+
+
+@router.get("/backfill-status")
+async def backfill_status(
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    project_id: UUID,
+    business_date: date,
+) -> dict[str, int | bool]:
+    """How many backfills are left, asked before writing rather than after failing."""
+    used = await _backfilled_count(db, project_id, business_date)
+    remaining = max(0, BACKFILL_MAX_PER_DAY - used)
+    return {
+        "limit": BACKFILL_MAX_PER_DAY,
+        "used": used,
+        "remaining": remaining,
+        "allowed": remaining > 0,
+    }
 
 
 @router.patch("/{log_id}")

@@ -15,6 +15,11 @@ from app.clock import now_utc
 MADRID = ZoneInfo("Europe/Madrid")
 DAY_CUTOVER_HOUR = 4
 
+# R9: a forgotten day can be recorded for one week, then the record is closed.
+BACKFILL_WINDOW_DAYS = 7
+# Invariant 4: three, because a fourth is no longer "I forgot", it is rewriting.
+BACKFILL_MAX_PER_DAY = 3
+
 
 class BusinessDateError(ValueError):
     """A business date the rules do not allow.
@@ -60,3 +65,25 @@ def validate_business_date(value: date, *, today: date | None = None) -> date:
             "A business date cannot be in the future",
         )
     return value
+
+
+def validate_backfill_window(value: date, *, today: date | None = None) -> date:
+    """Reject a date that is too old to be recorded at all (R9).
+
+    Today and the seven days before it are open. The eighth day back is not:
+    the point of the window is that the record reflects what was remembered,
+    not what was reconstructed weeks later.
+    """
+    current = today if today is not None else today_business_date()
+    oldest = current - timedelta(days=BACKFILL_WINDOW_DAYS)
+    if value < oldest:
+        raise BusinessDateError(
+            "BUSINESS_DATE_TOO_OLD",
+            f"A log can be written for {oldest} or later",
+        )
+    return value
+
+
+def backfill_window(today: date) -> tuple[date, date]:
+    """The inclusive range of dates that can still be recorded."""
+    return today - timedelta(days=BACKFILL_WINDOW_DAYS), today

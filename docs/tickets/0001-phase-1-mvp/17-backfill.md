@@ -10,7 +10,7 @@
 
 - [ ] A past business day can be recorded within seven days; a date eight or more days old is rejected with 422.
 - [ ] At most three backfilled logs are accepted per project per business day; a fourth is rejected with 422.
-- [ ] The server marks a log as backfilled whenever its date precedes the current business day; a client-supplied flag is ignored.
+- [ ] The server marks a log as backfilled whenever its date precedes the current business day; a client-supplied flag is rejected outright rather than silently ignored, because a request carrying it is a client bug worth surfacing.
 - [ ] Backfilling changes neither the current streak nor the longest streak.
 - [ ] The interface states how many backfills remain for the selected day before saving.
 - [ ] A backfilled day is visually distinguishable from a day recorded on the day itself.

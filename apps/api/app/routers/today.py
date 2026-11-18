@@ -62,14 +62,19 @@ async def today(
     # One query for the whole window: streaks are computed in memory from
     # these sets, never with a query per project.
     rows = await db.execute(
-        select(Log.project_id, Log.id, Log.business_date, Log.content, Log.created_at)
+        select(
+            Log.project_id, Log.id, Log.business_date, Log.content, Log.created_at, Log.backfilled
+        )
         .where(Log.deleted_at.is_(None), Log.business_date >= start, Log.business_date <= current)
         .order_by(Log.created_at)
     )
     checked: dict[UUID, set[date]] = {}
     latest: dict[UUID, LoggedEntry] = {}
-    for project_id, log_id, business_date, content, _created in rows:
-        checked.setdefault(project_id, set()).add(business_date)
+    for project_id, log_id, business_date, content, _created, backfilled in rows:
+        # Invariant: a backfilled log never repairs a streak. The day counts
+        # only if something was written while it was still the day.
+        if not backfilled:
+            checked.setdefault(project_id, set()).add(business_date)
         if business_date == current:
             latest[project_id] = LoggedEntry(id=log_id, content=content)
 
