@@ -9,6 +9,7 @@ import { AppShell, LoadingProjects, PageHeading } from "@/components/app-shell";
 import { Icon } from "@/components/icon";
 import { ProjectLogs } from "@/components/project-logs";
 import { ProjectSchedule } from "@/components/project-schedule";
+import { ProjectStatusCard } from "@/components/project-status-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -339,6 +340,8 @@ export default function ProjectDetailPage() {
           </Card>
 
           <ProjectSchedule projectId={id} />
+
+          <ProjectStatusCard project={data} />
 
           <p className="flex items-start gap-2 rounded-[10px] bg-[#f3f4ec] px-4 py-3 text-[12px] text-muted-foreground">
             <Icon name="info" size={17} />

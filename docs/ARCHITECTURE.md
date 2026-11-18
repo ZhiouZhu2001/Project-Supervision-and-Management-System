@@ -308,6 +308,7 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `POST` | `/auth/logout` | Deletes the current session |
 | `POST` | `/auth/logout-all` | Deletes every session for the account |
 | `GET` | `/auth/me` | Account + flame data |
+| `PATCH` | `/projects/:id/status` | `{status}`; appends a dated status row and mirrors the current value |
 | `GET` | `/projects/:id/schedule` | The rest-day rule in force for this project today, and whether it is inherited |
 | `PUT` | `/projects/:id/schedule` | Sets or updates this project's override for an effective date |
 | `DELETE` | `/projects/:id/schedule` | Drops the override so the project follows the account default |

@@ -16,6 +16,7 @@ from app.models.schedule import ScheduleRule
 from app.schemas.calendar import CalendarDay, CalendarView
 from app.services.business_day import backfill_window, today_business_date
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, RestRule, rest_weekdays_for
+from app.services.status import load_status_rules, status_on
 
 router = APIRouter(tags=["calendar"])
 
@@ -96,6 +97,7 @@ async def read_calendar(
         .distinct()
     )
     logged: set[tuple[UUID, date]] = {(project_id, day) for project_id, day in rows}
+    status_rules = await load_status_rules(db, until=end)
 
     backfilled_rows = await db.execute(
         select(Log.business_date, func.count())
@@ -116,6 +118,9 @@ async def read_calendar(
         done = 0
         for project in projects:
             if cursor < project.counting_from:
+                continue
+            # R14: a paused project expected nothing on that day.
+            if status_on(cursor, status_rules.get(project.id, [])) != "active":
                 continue
 
             overrides = by_project.get(project.id, [])

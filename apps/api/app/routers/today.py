@@ -14,6 +14,7 @@ from app.models.schedule import ScheduleRule
 from app.schemas.today import Flame, LoggedEntry, TodayProject, TodayView
 from app.services.business_day import DAY_CUTOVER_HOUR, today_business_date
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, RestRule, rest_weekdays_for
+from app.services.status import load_status_rules, status_on
 from app.services.streak import FLAME_THRESHOLD, current_streak, expected_days, window_start
 
 router = APIRouter(tags=["today"])
@@ -50,6 +51,7 @@ async def today(
     current = today_business_date()
     start = window_start(current)
     global_rules, project_rules = await _rules(db, current)
+    status_rules = await load_status_rules(db, until=current)
 
     projects = list(
         await db.scalars(
@@ -83,17 +85,22 @@ async def today(
 
     for project in projects:
         overrides = project_rules.get(project.id, [])
+        history = status_rules.get(project.id, [])
 
         def rest_on(day: date, overrides: list[RestRule] = overrides) -> frozenset[int]:
             # Project rules win over the account default, day by day (R7/R14).
             base = rest_weekdays_for(day, global_rules, DEFAULT_REST_WEEKDAYS)
             return rest_weekdays_for(day, overrides, base)
 
-        streak = current_streak(
-            expected_days(max(project.counting_from, start), current, rest_for=rest_on),
-            checked.get(project.id, set()),
-            current,
-        )
+        # R14: paused days are not expected, so the chain closes over them and
+        # resuming continues from the same number instead of restarting.
+        days = [
+            day
+            for day in expected_days(max(project.counting_from, start), current, rest_for=rest_on)
+            if status_on(day, history) == "active"
+        ]
+
+        streak = current_streak(days, checked.get(project.id, set()), current)
         entries.append(
             TodayProject(
                 id=project.id,

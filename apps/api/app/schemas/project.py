@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -75,3 +76,9 @@ class ScheduleUpdate(BaseModel):
 
     rest_weekdays: list[int] = Field(max_length=7)
     effective_from: date | None = None
+
+
+class StatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["active", "paused", "finished", "archived"]

@@ -12,16 +12,19 @@ from app.deps import CurrentAccount
 from app.errors import ApiError, project_not_found
 from app.models.project import Project
 from app.models.schedule import ScheduleRule
+from app.models.status import ProjectStatusChange
 from app.schemas.project import (
     ProjectCreate,
     ProjectUpdate,
     ProjectView,
     ScheduleUpdate,
     ScheduleView,
+    StatusUpdate,
 )
 from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
 from app.services.retention import RETENTION
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, validate_rest_weekdays
+from app.services.status import can_transition
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -69,6 +72,14 @@ async def create_project(
         sort_order=(highest if highest is not None else -1) + 1,
     )
     db.add(project)
+    await db.flush()
+    # The first status row is dated to the day counting starts, so the history
+    # is complete from the beginning rather than from the first change.
+    db.add(
+        ProjectStatusChange(
+            project_id=project.id, status="active", effective_from=project.created_business_date
+        )
+    )
     await db.commit()
     await db.refresh(project)
 
@@ -130,6 +141,36 @@ async def restore_project(
         raise ApiError(410, "PROJECT_EXPIRED", "This project was deleted too long ago to restore")
 
     project.deleted_at = None
+    project.updated_at = now_utc()
+    await db.commit()
+    await db.refresh(project)
+    return ProjectView.model_validate(project)
+
+
+@router.patch("/{project_id}/status")
+async def change_status(
+    project_id: UUID,
+    payload: StatusUpdate,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ProjectView:
+    project = await _load(db, project_id)
+    today = today_business_date()
+
+    if not can_transition(project.status, payload.status):
+        raise ApiError(
+            422,
+            "STATUS_TRANSITION_INVALID",
+            f"A project cannot go from {project.status} to {payload.status}",
+        )
+
+    # R14: the change is dated, not overwritten. `project.status` mirrors the
+    # newest row so list queries stay a single scan.
+    # R14: appended, never overwritten. A pause and a resume on the same day
+    # are two rows; the newest one is the one in force.
+    db.add(ProjectStatusChange(project_id=project_id, status=payload.status, effective_from=today))
+
+    project.status = payload.status
     project.updated_at = now_utc()
     await db.commit()
     await db.refresh(project)
