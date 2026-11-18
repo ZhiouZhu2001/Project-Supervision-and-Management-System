@@ -17,7 +17,7 @@ from app.models.alert import AlertLog
 from app.models.project import Project
 from app.services.schedule import load_rules
 from app.services.status import load_status_rules
-from app.services.streak import current_streak, window_start
+from app.services.streak import current_streak
 from app.services.streak_inputs import expected_days_for, load_logged_days
 
 
@@ -59,9 +59,9 @@ async def collect_misses(db: AsyncSession, *, current: date, base_url: str) -> l
 
     global_rules, by_project = await load_rules(db, until=current)
     status_rules = await load_status_rules(db, until=current)
-    # The whole streak window, not just today: "consecutive missed days" and
-    # the streak itself are both computed from past days.
-    start = window_start(current)
+    # Everything the projects ever had, not a bounded window: "consecutive
+    # missed days" and the longest streak both reach back past any cap (R6).
+    start = min((project.counting_from for project in projects), default=current)
     logged = await load_logged_days(db, start=start, end=current, include_backfilled=True)
     clean = await load_logged_days(db, start=start, end=current, include_backfilled=False)
 

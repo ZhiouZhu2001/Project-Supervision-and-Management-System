@@ -16,7 +16,7 @@ from app.models.log import Log
 from app.models.project import Project
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, rest_weekdays_for
 from app.services.status import load_status_rules, status_on
-from app.services.streak import current_streak, expected_days, longest_streak, window_start
+from app.services.streak import current_streak, expected_days, longest_streak
 
 
 @dataclass
@@ -69,7 +69,10 @@ def expected_days_for(
     Rest days and days on which the project was not active are absent rather
     than "missed", which is what lets a streak close over a pause (R14).
     """
-    start = max(project.counting_from, window_start(current))
+    # R6: no lookback window. `longest_streak` never decreases, so it has to
+    # see every expected day the project ever had — a bounded window silently
+    # truncated the record. The cost is bounded by the project's own age.
+    start = project.counting_from
 
     def rest_on(day: date) -> frozenset[int]:
         base = rest_weekdays_for(day, global_rules, DEFAULT_REST_WEEKDAYS)
@@ -89,7 +92,9 @@ async def streaks_for(
 
     global_rules, by_project = await load_rules(db, until=current)
     status_rules = await load_status_rules(db, until=current)
-    checked = await load_checked_days(db, start=window_start(current), end=current)
+    # One query covering every project, from the oldest one's first day.
+    start = min((project.counting_from for project in projects), default=current)
+    checked = await load_checked_days(db, start=start, end=current)
 
     result: dict[UUID, StreakPair] = {}
     for project in projects:

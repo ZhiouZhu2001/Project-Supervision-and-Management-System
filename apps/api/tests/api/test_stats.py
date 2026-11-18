@@ -173,3 +173,34 @@ async def test_everything_arrives_in_one_response(client: httpx.AsyncClient) -> 
 
 async def test_statistics_require_a_session(client: httpx.AsyncClient) -> None:
     assert (await client.get(STATS)).status_code == 401
+
+async def test_the_longest_streak_outlives_any_lookback_window(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """R6: the best ever run "never decreases", so it cannot be computed from a
+    bounded lookback. A six-day run from 500 days ago is still the record."""
+    await _login(client)
+    project_id = await _project(client, "Long haul")
+    today = today_business_date()
+    started = today - timedelta(days=500)
+
+    async with session_factory() as session:
+        session.add(ScheduleRule(project_id=None, rest_weekdays=[], effective_from=started))
+        project = await session.get(Project, UUID(project_id))
+        assert project is not None
+        project.start_date = started
+        project.created_business_date = started
+        for offset in range(6):
+            session.add(
+                Log(
+                    project_id=UUID(project_id),
+                    business_date=started + timedelta(days=offset),
+                    content="done",
+                    backfilled=False,
+                )
+            )
+        await session.commit()
+
+    body = (await client.get(f"{PROJECTS}/{project_id}/stats")).json()
+
+    assert body["longest_streak"] == 6

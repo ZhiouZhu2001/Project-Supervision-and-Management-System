@@ -23,10 +23,11 @@ FLAME_THRESHOLD = 7
 
 
 def window_start(today: date) -> date:
-    """Oldest day that can still contribute to a streak.
+    """Oldest day included in a bounded reporting window.
 
-    A year is generous for a personal record, and the cap bounds the work on
-    every request to a fixed number of days.
+    This is a *reporting* bound (the twelve-week statistics rollup), never a
+    streak bound: R6's longest streak has to see the project's whole life, or
+    the record it is supposed to keep forever would quietly shrink.
     """
     return today - timedelta(days=WINDOW_DAYS)
 
