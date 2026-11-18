@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AppShell, PageHeading } from "@/components/app-shell";
+import { CalendarDayPanel } from "@/components/calendar-day-panel";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ApiError, getCalendar, type CalendarDayState } from "@/lib/api";
+import { ApiError, getCalendar, listProjects, type CalendarDayState } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -60,11 +61,14 @@ function monthLabel(month: string): string {
 export default function CalendarPage() {
   const router = useRouter();
   const [month, setMonth] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const { data, error, isPending } = useQuery({
     queryKey: ["calendar", month],
     queryFn: () => getCalendar(month ?? undefined),
   });
+
+  const projects = useQuery({ queryKey: ["projects"], queryFn: () => listProjects() });
 
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) router.replace("/login");
@@ -72,6 +76,7 @@ export default function CalendarPage() {
 
   const days = data?.days ?? [];
   const leadingBlanks = data ? data.first_weekday - 1 : 0;
+  const selectedDay = days.find((day) => day.business_date === selected) ?? null;
 
   return (
     <AppShell>
@@ -106,7 +111,8 @@ export default function CalendarPage() {
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)_260px] items-start gap-7 max-[900px]:grid-cols-1">
-        <Card>
+        <div className="flex flex-col gap-6">
+          <Card>
           <div className="mb-5 flex items-baseline justify-between gap-3">
             <h2 className="text-[15px] font-[600] text-foreground">
               {data ? monthLabel(data.month) : "Loading…"}
@@ -138,24 +144,37 @@ export default function CalendarPage() {
                 {days.map((day) => {
                   const dayNumber = Number(day.business_date.slice(-2));
                   const isToday = data?.today === day.business_date;
+                  const isSelected = selected === day.business_date;
                   return (
-                    <div
+                    <button
                       key={day.business_date}
+                      type="button"
+                      onClick={() => setSelected(day.business_date)}
+                      aria-pressed={isSelected}
+                      aria-label={`${day.business_date}, ${day.state}`}
                       title={`${day.business_date} · ${day.done_count}/${day.expected_count} recorded`}
                       className={cn(
-                        "flex aspect-square flex-col items-center justify-center rounded-[8px] text-[12px] font-[550] tabular-nums",
+                        "flex aspect-square flex-col items-center justify-center rounded-[8px] text-[12px] font-[550] tabular-nums transition-colors duration-[160ms]",
                         STATE_STYLE[day.state],
                         isToday && "ring-2 ring-foreground ring-offset-2 ring-offset-card",
+                        isSelected && "outline outline-2 outline-offset-2 outline-accent-foreground",
                       )}
                     >
                       {dayNumber}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </>
           )}
-        </Card>
+          </Card>
+
+          <CalendarDayPanel
+            day={selectedDay}
+            isToday={data?.today === selectedDay?.business_date}
+            projects={projects.data ?? []}
+          />
+        </div>
 
         <Card>
           <h2 className="text-[15px] font-[600] text-foreground">How to read it</h2>
