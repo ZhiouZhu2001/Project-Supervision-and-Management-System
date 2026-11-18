@@ -101,7 +101,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span>
             Personal workspace <span className="opacity-40">/</span>{" "}
             <strong className="font-[600] text-foreground">
-              {pathname.startsWith("/projects") ? "Projects" : "Today"}
+              {pathname.startsWith("/settings")
+                ? "Settings"
+                : pathname.startsWith("/projects")
+                  ? "Projects"
+                  : "Today"}
             </strong>
           </span>
           <span className="inline-flex items-center gap-[10px]">

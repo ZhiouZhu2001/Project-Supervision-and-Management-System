@@ -136,11 +136,20 @@ export default function TodayPage() {
                       <span
                         className={cn(
                           "inline-flex items-center gap-[6px] whitespace-nowrap rounded-[5px] px-[9px] py-[5px] text-[10px] font-[550]",
-                          project.recorded ? "bg-sage text-sage-ink" : "bg-pill text-pill-ink",
+                          project.recorded || project.is_rest_day
+                            ? "bg-sage text-sage-ink"
+                            : "bg-pill text-pill-ink",
                         )}
                       >
-                        <Icon name={project.recorded ? "check" : "clock"} size={12} />
-                        {project.recorded ? "Recorded" : "Not recorded"}
+                        <Icon
+                          name={project.recorded ? "check" : project.is_rest_day ? "rest" : "clock"}
+                          size={12}
+                        />
+                        {project.recorded
+                          ? "Recorded"
+                          : project.is_rest_day
+                            ? "Rest day"
+                            : "Not recorded"}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
                         {project.current_streak === 0

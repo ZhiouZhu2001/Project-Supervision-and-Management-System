@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -63,6 +64,17 @@ export function AccountBar({ flame = null }: { flame?: Flame | null }) {
           variant="ghost"
           size="icon"
           className="ml-auto border-transparent"
+          asChild
+        >
+          <Link href="/settings" aria-label="Settings" title="Settings">
+            <Icon name="sliders" size={17} />
+          </Link>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="border-transparent"
           aria-label="Sign out"
           title="Sign out"
           disabled={signOut.isPending}

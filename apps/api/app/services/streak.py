@@ -13,7 +13,7 @@ Two rules are easy to get wrong and are therefore stated here:
   periods are neither counted nor breaking; they simply are not in the list.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date, timedelta
 
 WINDOW_DAYS = 400
@@ -32,13 +32,16 @@ def window_start(today: date) -> date:
 
 
 def expected_days(
-    start: date, end: date, *, rest_weekdays: frozenset[int] = frozenset()
+    start: date,
+    end: date,
+    *,
+    rest_weekdays: frozenset[int] = frozenset(),
+    rest_for: Callable[[date], frozenset[int]] | None = None,
 ) -> list[date]:
     """Days the owner was expected to record in `[start, end]`, ascending.
 
-    `rest_weekdays` uses ISO weekday numbers (1 = Monday). It is empty until
-    the rest-day ticket lands, but the parameter exists now so callers do not
-    have to change shape later.
+    `rest_weekdays` is a constant set; `rest_for` resolves the set per day and
+    wins when supplied, because a rule change must not rewrite history (R14).
     """
     if end < start:
         return []
@@ -46,7 +49,8 @@ def expected_days(
     days: list[date] = []
     cursor = start
     while cursor <= end:
-        if cursor.isoweekday() not in rest_weekdays:
+        rest = rest_for(cursor) if rest_for is not None else rest_weekdays
+        if cursor.isoweekday() not in rest:
             days.append(cursor)
         cursor += timedelta(days=1)
     return days

@@ -2,10 +2,12 @@ from datetime import timedelta
 from uuid import UUID
 
 import httpx
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.log import Log
 from app.models.project import Project
+from app.models.schedule import ScheduleRule
 from app.services.business_day import today_business_date
 from tests.conftest import ACCOUNT_EMAIL, ACCOUNT_PASSWORD
 
@@ -35,11 +37,18 @@ async def _backdate_and_log(
 
     The API refuses to create history before a project existed (R3), so a
     multi-day streak can only be set up by writing the rows a real history
-    would have produced.
+    would have produced. The project also gets a rest-day rule effective from
+    that start with no rest days, so "consecutive" means consecutive calendar
+    days rather than "consecutive weekdays that are not weekends".
     """
     today = today_business_date()
     start = today - timedelta(days=max(offsets))
     async with session_factory() as session:
+        existing = await session.scalar(
+            select(ScheduleRule).where(ScheduleRule.effective_from == start)
+        )
+        if existing is None:
+            session.add(ScheduleRule(project_id=None, rest_weekdays=[], effective_from=start))
         project = await session.get(Project, project_id)
         assert project is not None
         project.start_date = start

@@ -17,6 +17,8 @@ class TodayProject(BaseModel):
     recorded: bool
     last_log: LoggedEntry | None
     current_streak: int
+    # R7: a rest day is not a failure, and the UI must be able to say so.
+    is_rest_day: bool
 
 
 class Flame(BaseModel):
