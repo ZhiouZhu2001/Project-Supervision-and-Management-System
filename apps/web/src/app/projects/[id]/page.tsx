@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, getProject, updateProject, type Project } from "@/lib/api";
+import { ApiError, deleteProject, getProject, updateProject, type Project } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const PALETTE = [
@@ -59,6 +59,16 @@ export default function ProjectDetailPage() {
       setSaved(true);
       queryClient.setQueryData(["project", id], project);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const remove = useMutation({
+    mutationFn: () => deleteProject(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["today"] });
+      router.replace("/projects");
     },
   });
 
@@ -245,6 +255,54 @@ export default function ProjectDetailPage() {
           </Card>
 
           <ProjectLogs projectId={id} />
+
+          <Card>
+            <h2 className="text-[15px] font-[600] text-foreground">Delete this project</h2>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Hides the project and its logs. You can restore it for thirty days, after which it is
+              gone for good.
+            </p>
+            {confirmingDelete ? (
+              <div className="mt-4 flex flex-col gap-3">
+                <p role="alert" className="text-[12px] text-foreground">
+                  Delete “{data.name}”? Its logs stop counting immediately.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Keep it
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate()}
+                  >
+                    {remove.isPending ? "Deleting…" : "Yes, delete"}
+                  </Button>
+                </div>
+                {remove.isError ? (
+                  <p role="alert" className="text-[11px] text-destructive">
+                    Could not delete this project.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="subtle"
+                size="sm"
+                className="mt-4"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                Delete project
+              </Button>
+            )}
+          </Card>
         </div>
 
         <aside className="flex flex-col gap-4">

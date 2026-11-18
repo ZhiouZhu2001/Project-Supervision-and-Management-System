@@ -320,7 +320,8 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `PATCH` | `/projects/:id` | Name, note, colour, sort order only |
 | `POST` | `/projects/:id/status` | `{to, effective_from?, reason?}`, validated by R8/R10 |
 | `PUT` | `/projects/:id/schedule` | `{rest_weekdays, effective_from?}`; appends a rule (R14) |
-| `DELETE` | `/projects/:id` | Soft delete |
+| `DELETE` | `/projects/:id` | Soft delete; the project and its logs leave every view at once |
+| `POST` | `/projects/:id/restore` | Undo a soft delete within thirty days, with logs and streak intact |
 | `POST` | `/projects/:id/restore` | Undo soft delete within 30 days |
 | `GET` | `/logs` | `?from&to&project_id&limit&cursor`, ordered `business_date DESC` |
 | `POST` | `/logs` | `{project_id, business_date, content, duration_minutes?, tags?, client_id?}`; server derives `backfilled` |

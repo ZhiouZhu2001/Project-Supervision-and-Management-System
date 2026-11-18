@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -15,11 +15,9 @@ from app.models.log_tag import LogTag
 from app.models.project import Project
 from app.schemas.log import LogCreate, LogUpdate, LogView
 from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
+from app.services.retention import RETENTION
 
 router = APIRouter(prefix="/logs", tags=["logs"])
-
-# Soft-deleted logs stay recoverable for this long, then they are gone.
-RETENTION = timedelta(days=30)
 
 
 async def _tags_for(db: AsyncSession, log_ids: list[UUID]) -> dict[UUID, list[str]]:

@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import {
   ApiError,
   listProjects,
+  restoreProject,
   updateProject,
   type Project,
   type ProjectStatus,
@@ -32,8 +33,23 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const { data, error, isPending, refetch } = useQuery({
     queryKey: ["projects"],
-    queryFn: listProjects,
+    queryFn: () => listProjects(),
   });
+
+  const deleted = useQuery({
+    queryKey: ["projects", "deleted"],
+    queryFn: () => listProjects(true),
+  });
+
+  const restore = useMutation({
+    mutationFn: (id: string) => restoreProject(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["today"] });
+    },
+  });
+
+  const recentlyDeleted = (deleted.data ?? []).filter((project) => project.deleted_at !== null);
 
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) router.replace("/login");
@@ -188,6 +204,53 @@ export default function ProjectsPage() {
             <p role="alert" className="mb-4 text-[12px] text-destructive">
               Could not finish reordering. The list has been refreshed; try again.
             </p>
+          ) : null}
+
+          {recentlyDeleted.length > 0 ? (
+            <section className="mb-8">
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <h2 className="text-[15px] font-[600] text-foreground">
+                  Recently deleted
+                  <span className="ml-2 rounded-full bg-secondary px-2 py-[2px] text-[11px] font-[600] text-muted-foreground">
+                    {recentlyDeleted.length}
+                  </span>
+                </h2>
+                <span className="text-[11px] text-muted-foreground">Restorable for thirty days</span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {recentlyDeleted.map((project) => (
+                  <li
+                    key={project.id}
+                    className="flex items-center gap-3 rounded-[10px] border border-dashed border-border px-5 py-4"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <strong className="truncate text-[14px] font-[600] text-muted-foreground">
+                        {project.name}
+                      </strong>
+                      <span className="text-[11px] text-muted-foreground">
+                        deleted {(project.deleted_at ?? "").slice(0, 10)}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="subtle"
+                      size="sm"
+                      disabled={restore.isPending}
+                      onClick={() => restore.mutate(project.id)}
+                    >
+                      Restore
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              {restore.isError ? (
+                <p role="alert" className="mt-2 text-[11px] text-destructive">
+                  {restore.error instanceof ApiError && restore.error.code === "PROJECT_EXPIRED"
+                    ? "That project was deleted too long ago to restore."
+                    : "Could not restore that project."}
+                </p>
+              ) : null}
+            </section>
           ) : null}
 
           <p className="flex items-start gap-2 rounded-[10px] bg-[#f3f4ec] px-4 py-3 text-[12px] text-muted-foreground">

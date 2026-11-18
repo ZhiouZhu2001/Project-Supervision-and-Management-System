@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -57,6 +57,9 @@ class ProjectView(BaseModel):
     created_business_date: date
     status: str
     sort_order: int
+    # Non-null only when the caller asked for deleted projects, which is what
+    # makes the recovery list possible without a second endpoint.
+    deleted_at: datetime | None = None
 
 
 class ScheduleView(BaseModel):

@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ from app.schemas.project import (
     ScheduleView,
 )
 from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
+from app.services.retention import RETENTION
 from app.services.schedule import DEFAULT_REST_WEEKDAYS, validate_rest_weekdays
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -36,12 +37,13 @@ async def _load(db: AsyncSession, project_id: UUID) -> Project:
 async def list_projects(
     _account: CurrentAccount,
     db: Annotated[AsyncSession, Depends(get_session)],
+    include_deleted: bool = False,
 ) -> list[ProjectView]:
-    rows = await db.scalars(
-        select(Project)
-        .where(Project.deleted_at.is_(None))
-        .order_by(Project.sort_order, Project.created_at)
-    )
+    query = select(Project)
+    if not include_deleted:
+        query = query.where(Project.deleted_at.is_(None))
+
+    rows = await db.scalars(query.order_by(Project.sort_order, Project.created_at))
     return [ProjectView.model_validate(row) for row in rows]
 
 
@@ -97,6 +99,38 @@ async def update_project(
         setattr(project, field, value)
     project.updated_at = now_utc()
 
+    await db.commit()
+    await db.refresh(project)
+    return ProjectView.model_validate(project)
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    project_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    project = await _load(db, project_id)
+    project.deleted_at = now_utc()
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{project_id}/restore")
+async def restore_project(
+    project_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ProjectView:
+    project = await db.get(Project, project_id)
+    if project is None:
+        raise project_not_found()
+
+    if project.deleted_at is not None and project.deleted_at <= now_utc() - RETENTION:
+        raise ApiError(410, "PROJECT_EXPIRED", "This project was deleted too long ago to restore")
+
+    project.deleted_at = None
+    project.updated_at = now_utc()
     await db.commit()
     await db.refresh(project)
     return ProjectView.model_validate(project)
