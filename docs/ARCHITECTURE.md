@@ -1,39 +1,39 @@
-# Architecture
+﻿# Architecture
 
-> Rule IDs (R1–R14) are defined in [`PRD.md`](PRD.md); terms in [`GLOSSARY.md`](../GLOSSARY.md). **This document is the single list of technical decisions**: when code disagrees with it, either the code changes or this document changes first, with a stated reason.
+> Rule IDs (R1â€“R14) are defined in [`PRD.md`](PRD.md); terms in [`GLOSSARY.md`](../GLOSSARY.md). **This document is the single list of technical decisions**: when code disagrees with it, either the code changes or this document changes first, with a stated reason.
 
 ## 1. Shape
 
-One VPS, five containers, one database, one disk. No cache layer, no message queue, no gateway software, no orchestrator. This is not a compromise — it is the correct shape for a single-user workload. The reasoning is in §10.
+One VPS, five containers, one database, one disk. No cache layer, no message queue, no gateway software, no orchestrator. This is not a compromise â€” it is the correct shape for a single-user workload. The reasoning is in Â§10.
 
 ```
-                ┌───────────────────────────────────────────────┐
-  Browser / RN  │                    OVHcloud VPS (Ubuntu 24.04)│
-      │         │  ┌─────────────────────────────────────────┐│
-      │ HTTPS   │  │                nginx  :80/:443          ││
-      └────────►│  │  /            → web:3000                ││
-                │  │  /api/*       → api:8000                ││
-                │  │  /uploads/*   → api:8000 (X-Accel)      ││
-                │  └───────┬─────────────────────┬───────────┘│
-                │          │                     │            │
-                │   ┌──────▼──────┐      ┌───────▼─────────┐  │
-                │   │  web        │      │  api            │  │
-                │   │  Next.js 15 │─────►│  FastAPI        │  │
-                │   │  stateless  │ int. │  uvicorn x1     │  │
-                │   └─────────────┘      │  APScheduler    │  │
-                │                        └───────┬─────────┘  │
-                │                                │            │
-                │                     ┌──────────▼─────────┐  │
-                │                     │  db  PostgreSQL 16 │  │
-                │                     │  volume: pgdata    │  │
-                │                     └──────────┬─────────┘  │
-                │                                │            │
-                │   ┌──────────────┐   ┌─────────▼─────────┐  │
-                │   │ uploads vol  │   │ backup (profile)  │  │
-                │   │ /data/uploads│   │ pg_dump→restic→S3 │  │
-                │   └──────────────┘   └───────────────────┘  │
-                └───────────────────────────────────────────────┘
-                                        │
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  Browser / RN  â”‚                    OVHcloud VPS (Ubuntu 24.04)â”‚
+      â”‚         â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”â”‚
+      â”‚ HTTPS   â”‚  â”‚                nginx  :80/:443          â”‚â”‚
+      â””â”€â”€â”€â”€â”€â”€â”€â”€â–ºâ”‚  â”‚  /            â†’ web:3000                â”‚â”‚
+                â”‚  â”‚  /api/*       â†’ api:8000                â”‚â”‚
+                â”‚  â”‚  /uploads/*   â†’ api:8000 (X-Accel)      â”‚â”‚
+                â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â”‚
+                â”‚          â”‚                     â”‚            â”‚
+                â”‚   â”Œâ”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+                â”‚   â”‚  web        â”‚      â”‚  api            â”‚  â”‚
+                â”‚   â”‚  Next.js 15 â”‚â”€â”€â”€â”€â”€â–ºâ”‚  FastAPI        â”‚  â”‚
+                â”‚   â”‚  stateless  â”‚ int. â”‚  uvicorn x1     â”‚  â”‚
+                â”‚   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â”‚  APScheduler    â”‚  â”‚
+                â”‚                        â””â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+                â”‚                                â”‚            â”‚
+                â”‚                     â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+                â”‚                     â”‚  db  PostgreSQL 16 â”‚  â”‚
+                â”‚                     â”‚  volume: pgdata    â”‚  â”‚
+                â”‚                     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+                â”‚                                â”‚            â”‚
+                â”‚   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+                â”‚   â”‚ uploads vol  â”‚   â”‚ backup (profile)  â”‚  â”‚
+                â”‚   â”‚ /data/uploadsâ”‚   â”‚ pg_dumpâ†’resticâ†’S3 â”‚  â”‚
+                â”‚   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                        â”‚
                               OVH Object Storage (encrypted)
 ```
 
@@ -84,7 +84,7 @@ limit_req zone=api burst=20 nodelay;                  # separate zone for /login
 ```
 
 - Site-wide `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`.
-- HTTP → HTTPS 301; Let's Encrypt certificates with scheduled renewal and `nginx -s reload`.
+- HTTP â†’ HTTPS 301; Let's Encrypt certificates with scheduled renewal and `nginx -s reload`.
 - A single entry point makes cookies same-origin, so **no CORS middleware is needed anywhere**.
 
 ### 3.4 Two base URLs for SSR
@@ -141,7 +141,7 @@ Conventions: singular `snake_case` tables; `uuid` primary keys; every table has 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid PK` | |
-| `name` | `text NOT NULL` | 1–60 chars |
+| `name` | `text NOT NULL` | 1â€“60 chars |
 | `note` | `text` | Optional |
 | `color`, `emoji` | `text` | Display only |
 | `start_date` | `date NOT NULL` | May be past or future |
@@ -165,7 +165,7 @@ Index: `(project_id, effective_from DESC)`. **Status on business day `D`** is th
 |---|---|---|
 | `id` | `uuid PK` | |
 | `project_id` | `uuid NULL REFERENCES project ON DELETE CASCADE` | `NULL` = global default |
-| `rest_weekdays` | `smallint[] NOT NULL` | ISO weekdays 1–7, unique elements |
+| `rest_weekdays` | `smallint[] NOT NULL` | ISO weekdays 1â€“7, unique elements |
 | `effective_from` | `date NOT NULL` | |
 | `created_at` | `timestamptz` | |
 
@@ -180,18 +180,18 @@ Constraint: `UNIQUE NULLS NOT DISTINCT (project_id, effective_from)` (Postgres 1
 | `id` | `uuid PK` | |
 | `project_id` | `uuid NOT NULL REFERENCES project ON DELETE CASCADE` | |
 | `business_date` | `date NOT NULL` | Server-validated |
-| `content` | `text NOT NULL` | 1–2000 chars |
-| `duration_minutes` | `int NULL` | 0–1440 |
+| `content` | `text NOT NULL` | 1â€“2000 chars |
+| `duration_minutes` | `int NULL` | 0â€“1440 |
 | `backfilled` | `bool NOT NULL DEFAULT false` | Server decides from `business_date < current business day` |
 | `client_id` | `text NULL UNIQUE` | Idempotency key for offline replay (Phase 2) |
 | `created_at`, `updated_at`, `deleted_at` | | |
 
 Indexes: `(project_id, business_date) WHERE deleted_at IS NULL`, `(business_date) WHERE deleted_at IS NULL`.
-**No** unique constraint on `(project_id, business_date)` — multiple logs per day are legal (R2).
+**No** unique constraint on `(project_id, business_date)` â€” multiple logs per day are legal (R2).
 
 ### 4.6 `log_tag`
 
-`(log_id uuid REFERENCES log ON DELETE CASCADE, tag text)`, primary key `(log_id, tag)`, tag ≤ 24 chars.
+`(log_id uuid REFERENCES log ON DELETE CASCADE, tag text)`, primary key `(log_id, tag)`, tag â‰¤ 24 chars.
 
 ### 4.7 `attachment`
 
@@ -201,7 +201,7 @@ Indexes: `(project_id, business_date) WHERE deleted_at IS NULL`, `(business_date
 | `log_id` | `uuid NOT NULL REFERENCES log ON DELETE CASCADE` | |
 | `storage_key` | `text NOT NULL` | `YYYY/MM/<ulid>.<ext>`, never the original filename |
 | `mime` | `text NOT NULL` | Sniffed server-side |
-| `bytes` | `int NOT NULL` | ≤ 5 MB |
+| `bytes` | `int NOT NULL` | â‰¤ 5 MB |
 | `width`, `height` | `int` | Image metadata |
 | `sha256` | `text NOT NULL` | Dedupe and integrity |
 | `created_at` | `timestamptz` | |
@@ -232,12 +232,12 @@ All live in `app/services/`, are pure functions where possible, and take an inje
 
 ```python
 def business_date_for(instant: datetime) -> date:
-    """UTC instant → business day. R1: local time minus 4 hours, take the date."""
+    """UTC instant â†’ business day. R1: local time minus 4 hours, take the date."""
     local = instant.astimezone(MADRID)
     return (local - timedelta(hours=4)).date()
 
 def business_day_bounds(d: date) -> tuple[datetime, datetime]:
-    """Business day → [start_utc, end_utc); length may be 23, 24 or 25 hours."""
+    """Business day â†’ [start_utc, end_utc); length may be 23, 24 or 25 hours."""
     start_local = datetime.combine(d, time(4, 0), tzinfo=MADRID)
     end_local = datetime.combine(d + timedelta(days=1), time(4, 0), tzinfo=MADRID)
     return start_local.astimezone(UTC), end_local.astimezone(UTC)
@@ -255,7 +255,7 @@ def expected_days(project, d_from: date, d_to: date) -> list[date]:
     #    status == 'active', weekday not in rest_weekdays
 ```
 
-The window is capped at 400 days. Beyond that, truncate and set `truncated: true` in the response — no real streak exceeds a year, and the cap bounds worst-case work.
+The window is capped at 400 days. Beyond that, truncate and set `truncated: true` in the response â€” no real streak exceeds a year, and the cap bounds worst-case work.
 
 ### 5.3 Streak (`streak.py`, the only implementation)
 
@@ -275,16 +275,16 @@ def current_streak(project, today: date, log_dates: set[date]) -> int:
     return n
 ```
 
-Two queries total, no N+1. When a list page needs streaks for many projects, batch-load rules and logs for all of them and compute in Python — **never** call `current_streak` inside a loop that queries per project.
+Two queries total, no N+1. When a list page needs streaks for many projects, batch-load rules and logs for all of them and compute in Python â€” **never** call `current_streak` inside a loop that queries per project.
 
 ### 5.4 Calendar aggregation (`stats.py`)
 
-At most 31 days × the number of active projects; aggregate in Python, no window functions:
+At most 31 days Ã— the number of active projects; aggregate in Python, no window functions:
 
 ```python
 def month_grid(month: date, projects: list[Project], logs: list[Log]) -> list[DayCell]:
     # DayCell: business_date, expected_count, done_count, is_rest, state
-    # state ∈ {'none','partial','most','all','rest','future'}
+    # state âˆˆ {'none','partial','most','all','rest','future'}
 ```
 
 ### 5.5 Alerts (`alerts.py`)
@@ -304,7 +304,7 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/auth/login` | `{email, password}` → sets cookie, returns the account |
+| `POST` | `/auth/login` | `{email, password}` â†’ sets cookie, returns the account |
 | `POST` | `/auth/logout` | Deletes the current session |
 | `POST` | `/auth/logout-all` | Deletes every session for the account |
 | `GET` | `/auth/me` | Account + flame data |
@@ -315,9 +315,10 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `GET` | `/settings` | The rest-day rule in force today, and the date it started |
 | `PUT` | `/settings/rest-days` | Appends (or updates today's) rest-day rule; all seven days off is refused |
 | `GET` | `/today` | The server's current business date, timezone, cutover hour, and every active project with its recorded state and latest entry |
-| `GET` | `/projects` | List, filterable by `status`, includes `current_streak` and `longest_streak` |
+| `GET` | `/projects` | List, filterable by `status`, includes `current_streak` and `longest_streak`; `?include_deleted=1` adds soft-deleted ones for the recovery list |
 | `POST` | `/projects` | `{name, start_date?, note?, rest_weekdays?}` |
-| `GET` | `/projects/:id` | Detail + rates + schedule rule + status history |
+| `GET` | `/projects/:id` | Detail + schedule rule + status history |
+| `GET` | `/projects/:id/stats` | `{current_streak, longest_streak}`; a finished project keeps the numbers it had |
 | `PATCH` | `/projects/:id` | Name, note, colour, sort order only |
 | `POST` | `/projects/:id/status` | `{to, effective_from?, reason?}`, validated by R8/R10 |
 | `PUT` | `/projects/:id/schedule` | `{rest_weekdays, effective_from?}`; appends a rule (R14) |
@@ -325,20 +326,21 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `POST` | `/projects/:id/restore` | Undo a soft delete within thirty days, with logs and streak intact |
 | `POST` | `/projects/:id/restore` | Undo soft delete within 30 days |
 | `GET` | `/logs` | `?from&to&project_id&limit&cursor`, ordered `business_date DESC` |
-| `GET` | `/logs/backfill-status` | `?project_id&business_date` → backfills remaining for that project and day |
+| `GET` | `/logs/backfill-status` | `?project_id&business_date` â†’ backfills remaining for that project and day |
 | `POST` | `/logs` | `{project_id, business_date, content, duration_minutes?, tags?, client_id?}`; server derives `backfilled` |
-| `PATCH` | `/logs/:id` | Body, duration, tags only — **not** `business_date` or `project_id` |
+| `PATCH` | `/logs/:id` | Body, duration, tags only â€” **not** `business_date` or `project_id` |
 | `DELETE` | `/logs/:id` | Soft delete |
-| `POST` | `/logs/:id/attachments` | `multipart/form-data`, ≤ 5 MB each, ≤ 4 per log |
+| `POST` | `/logs/:id/restore` | Undo a soft delete inside the 30-day retention window |
+| `POST` | `/logs/:id/attachments` | `multipart/form-data`, â‰¤ 5 MB each, â‰¤ 4 per log |
 | `GET` | `/attachments/:id` | Session check, then `X-Accel-Redirect` into the internal `/protected/` location |
 | `DELETE` | `/attachments/:id` | Hard delete: row and file both go |
-| `GET` | `/calendar` | `?month=YYYY-MM` (defaults to the current business month) → per-day expected/done counts and a state bucket |
+| `GET` | `/calendar` | `?month=YYYY-MM` (defaults to the current business month) â†’ per-day expected/done counts and a state bucket |
 | `GET` | `/stats` | Per-project rates and streaks, the twelve-week rollup and the thirty-day count, in one payload |
 | `GET` | `/export.json` | Full export: projects, logs, tags, attachment metadata, schedule rules, status changes |
 | `GET` | `/healthz` | Public, unauthenticated: `{db, last_alert_business_date, version}`; a stale date is a dead scheduler |
 | `GET` | `/uploads/*` | Session check, then `X-Accel-Redirect` |
 
-**Changing a log's date is not an edit — it is delete plus backfill.** `PATCH` refuses `business_date`, which makes R9's window and per-day limit impossible to bypass.
+**Changing a log's date is not an edit â€” it is delete plus backfill.** `PATCH` refuses `business_date`, which makes R9's window and per-day limit impossible to bypass.
 
 ## 7. Authentication and sessions
 
@@ -346,23 +348,23 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 - Passwords: `argon2id` via `argon2-cffi` at library-default parameters (time_cost=3, memory_cost=64 MiB).
 - Login rate limit: nginx `limit_req zone=login burst=5`; five consecutive failures lock for 15 minutes (in-memory counter; resetting on restart is acceptable).
 - Sessions: 32 random bytes; the DB stores `sha256(token)`. Cookie `sid` is `HttpOnly; Secure; SameSite=Lax; Path=/`, sliding 30-day expiry.
-- CSRF: `SameSite=Lax` plus `Origin` validation on non-GET requests. No CSRF token — the benefit doesn't justify the machinery.
+- CSRF: `SameSite=Lax` plus `Origin` validation on non-GET requests. No CSRF token â€” the benefit doesn't justify the machinery.
 - Logout deletes the row; "log out everywhere" deletes all rows.
 
 ## 8. File storage
 
-- Upload: `api` receives → validates `Content-Type` and actual bytes (open with Pillow and `verify()`) → computes `sha256` → writes `/data/uploads/YYYY/MM/<ulid>.<ext>` → inserts the `attachment` row. **Disk first, DB second**; a DB failure deletes the file.
-- Read: `GET /uploads/<key>` → session check → `X-Accel-Redirect: /internal-uploads/<key>`, so Python never buffers the file.
+- Upload: `api` receives â†’ validates `Content-Type` and actual bytes (open with Pillow and `verify()`) â†’ computes `sha256` â†’ writes `/data/uploads/YYYY/MM/<ulid>.<ext>` â†’ inserts the `attachment` row. **Disk first, DB second**; a DB failure deletes the file.
+- Read: `GET /uploads/<key>` â†’ session check â†’ `X-Accel-Redirect: /internal-uploads/<key>`, so Python never buffers the file.
 - Limits: 5 MB per file, 4 per log, 50 GB soft cap overall.
 - Cleanup: a daily job hard-deletes files and rows 30 days after soft delete.
 
 ## 9. Backup and restore
 
-- Daily 03:30 host cron: `pg_dump -Fc` → temp file → `restic backup` (encrypted) → OVH Object Storage.
+- Daily 03:30 host cron: `pg_dump -Fc` â†’ temp file â†’ `restic backup` (encrypted) â†’ OVH Object Storage.
 - The `uploads` volume is backed up the same way, incrementally.
 - Retention: 7 daily, 4 weekly, 12 monthly (`restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 12`).
 - **Quarterly drill**: `make restore f=<snapshot>` into a clean compose stack, then `make test-api`. A backup that has never been restored is not a backup.
-- RPO 24 h, RTO 1 h — acceptable for one machine and one user.
+- RPO 24 h, RTO 1 h â€” acceptable for one machine and one user.
 
 ## 10. Deliberately not built
 
@@ -378,7 +380,7 @@ Each entry states the condition that would reopen it. Without that trigger, it d
 | **CDN** | One user reaching his own VPS from Spain | Users span continents and static assets become the bottleneck |
 | **Full-text search (ES / pg_trgm)** | ~30k rows over three years; `ILIKE` is fine | More than 100k logs and search exceeds 200 ms |
 | **Event sourcing / CQRS** | Only one status chain, already logged as changes | Replay, audit or multiple read models become necessary |
-| **Multi-tenancy (`tenant_id` / RLS)** | Exactly one user | A second person actually uses it — write an ADR first |
+| **Multi-tenancy (`tenant_id` / RLS)** | Exactly one user | A second person actually uses it â€” write an ADR first |
 | **Chart library** | Four numbers on `/stats`; plain CSS suffices | A trend chart is needed beyond the calendar heat map |
 | **Internationalisation** | One language, one timezone | A second language is required |
 | **Sentry / APM** | Logs plus `/healthz` cover a single-user system | An error appears that cannot be reproduced from logs |
@@ -388,9 +390,9 @@ Each entry states the condition that would reopen it. Without that trigger, it d
 
 | Quantity | Estimate | Basis |
 |---|---|---|
-| Projects | ≤ 30 | Upper bound for one person to maintain |
-| Logs | 30 × 365 ≈ 11k/year, ≈ 33k over 3 years | One per project per day at most, typically |
-| Attachments | ≤ 20 GB over 3 years | One 2 MB image per log |
+| Projects | â‰¤ 30 | Upper bound for one person to maintain |
+| Logs | 30 Ã— 365 â‰ˆ 11k/year, â‰ˆ 33k over 3 years | One per project per day at most, typically |
+| Attachments | â‰¤ 20 GB over 3 years | One 2 MB image per log |
 | Database | < 1 GB | 33k rows of text |
 | Peak QPS | < 5 | One user |
 | Page P95 | < 300 ms (same region) | |
@@ -406,6 +408,7 @@ Each entry states the condition that would reopen it. Without that trigger, it d
 
 | Phase | Scope | Exit condition |
 |---|---|---|
-| **1** | FastAPI + responsive Next.js (installable to home screen), all of R1–R14, email alerts, backups | PRD acceptance criteria met; 14 days of use without a streak error |
+| **1** | FastAPI + responsive Next.js (installable to home screen), all of R1â€“R14, email alerts, backups | PRD acceptance criteria met; 14 days of use without a streak error |
 | **2** | React Native (Expo): today / quick log / project detail only; offline queue with `client_id` idempotency | 30 days of web use confirms those three screens are the whole need |
 | **3** | Only against demonstrated pain: trends, reports, richer export | The owner asks for it |
+

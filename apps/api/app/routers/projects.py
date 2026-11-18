@@ -1,8 +1,8 @@
 from datetime import date, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.models.schedule import ScheduleRule
 from app.models.status import ProjectStatusChange
 from app.schemas.project import (
     ProjectCreate,
+    ProjectListed,
     ProjectUpdate,
     ProjectView,
     ScheduleUpdate,
@@ -42,13 +43,31 @@ async def list_projects(
     _account: CurrentAccount,
     db: Annotated[AsyncSession, Depends(get_session)],
     include_deleted: bool = False,
-) -> list[ProjectView]:
+    status_filter: Annotated[
+        Literal["active", "paused", "finished", "archived"] | None, Query(alias="status")
+    ] = None,
+) -> list[ProjectListed]:
     query = select(Project)
     if not include_deleted:
         query = query.where(Project.deleted_at.is_(None))
+    if status_filter is not None:
+        query = query.where(Project.status == status_filter)
 
-    rows = await db.scalars(query.order_by(Project.sort_order, Project.created_at))
-    return [ProjectView.model_validate(row) for row in rows]
+    rows = list(await db.scalars(query.order_by(Project.sort_order, Project.created_at)))
+    if not rows:
+        return []
+
+    # One batched computation for the whole page: a per-project query here is
+    # the N+1 the streak module's docs warn about.
+    streaks = await streaks_for(db, rows, current=today_business_date())
+    return [
+        ProjectListed(
+            **ProjectView.model_validate(row).model_dump(),
+            current_streak=streaks[row.id].current,
+            longest_streak=streaks[row.id].longest,
+        )
+        for row in rows
+    ]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -301,3 +320,4 @@ async def clear_schedule(
     await db.execute(delete(ScheduleRule).where(ScheduleRule.project_id == project_id))
     await db.commit()
     return await _schedule_view(db, project_id, today_business_date())
+

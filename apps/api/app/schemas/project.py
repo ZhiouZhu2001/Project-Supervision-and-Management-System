@@ -63,6 +63,17 @@ class ProjectView(BaseModel):
     deleted_at: datetime | None = None
 
 
+class ProjectListed(ProjectView):
+    """A project as the list page needs it: with both streaks (ARCH 6).
+
+    Computed by the API, never by the client (invariant 12), and batched so the
+    list is one request rather than one per row.
+    """
+
+    current_streak: int
+    longest_streak: int
+
+
 class ScheduleView(BaseModel):
     """The rest-day rule in force for one project today (R7)."""
 

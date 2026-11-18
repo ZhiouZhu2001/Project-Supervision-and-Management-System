@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 
 import httpx
 
@@ -209,3 +209,40 @@ async def test_editing_requires_a_session(client: httpx.AsyncClient) -> None:
     )
 
     assert response.status_code == 401
+
+async def test_the_list_carries_both_streaks(client: httpx.AsyncClient) -> None:
+    """ARCH 6: GET /projects includes current_streak and longest_streak.
+
+    The list page groups projects by status and shows the streak, so asking
+    per project would be one request per row.
+    """
+    await _login(client)
+    project_id = (await client.post(PROJECTS, json={"name": "Listed"})).json()["id"]
+    await client.post("/api/logs", json={"project_id": project_id, "content": "done"})
+
+    body = (await client.get(PROJECTS)).json()
+
+    listed = next(project for project in body if project["id"] == project_id)
+    assert listed["current_streak"] == 1
+    assert listed["longest_streak"] == 1
+
+
+async def test_the_list_can_be_filtered_by_status(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    paused = (await client.post(PROJECTS, json={"name": "Paused one"})).json()["id"]
+    await client.post(PROJECTS, json={"name": "Live one"})
+    await client.patch(f"{PROJECTS}/{paused}/status", json={"status": "paused"})
+
+    only_paused = (await client.get(f"{PROJECTS}?status=paused")).json()
+
+    assert [project["name"] for project in only_paused] == ["Paused one"]
+
+
+async def test_an_unknown_status_filter_is_a_validation_error(client: httpx.AsyncClient) -> None:
+    await _login(client)
+
+    response = await client.get(f"{PROJECTS}?status=retired")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
