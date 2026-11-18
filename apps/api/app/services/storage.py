@@ -9,6 +9,7 @@ Two rules govern everything here:
 """
 
 import contextlib
+import hashlib
 import io
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +42,7 @@ class StoredImage:
     byte_size: int
     width: int
     height: int
+    sha256: str
 
 
 def upload_root() -> Path:
@@ -85,6 +87,7 @@ def save_image(data: bytes, *, today) -> StoredImage:
         byte_size=len(data),
         width=width,
         height=height,
+        sha256=hashlib.sha256(data).hexdigest(),
     )
 
 

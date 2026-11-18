@@ -146,6 +146,22 @@ export default function SettingsPage() {
             would recompute every streak you have.
           </p>
         </Card>
+
+        <Card>
+          <h2 className="text-[15px] font-[600] text-foreground">Your data</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            One file with every project, log, tag, rule and status change you have written. No
+            passwords, no session tokens, no image bytes — only the record itself.
+          </p>
+          <a
+            href="/api/export.json"
+            download="daymark-export.json"
+            className="mt-4 inline-flex min-h-[36px] items-center gap-2 rounded-[7px] border border-border bg-card px-4 text-[12px] font-[600] text-foreground hover:bg-secondary"
+          >
+            <Icon name="download" size={15} />
+            Download the export
+          </a>
+        </Card>
       </div>
     </AppShell>
   );

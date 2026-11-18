@@ -18,6 +18,7 @@ from app.jobs.scheduler import JOB_ID, build_scheduler, catch_up
 from app.routers.attachments import router as attachments_router
 from app.routers.auth import router as auth_router
 from app.routers.calendar import router as calendar_router
+from app.routers.export import router as export_router
 from app.routers.logs import router as logs_router
 from app.routers.projects import router as projects_router
 from app.routers.settings import router as settings_router
@@ -147,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(attachments_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
     app.include_router(stats_router, prefix="/api")
+    app.include_router(export_router, prefix="/api")
     app.include_router(today_router, prefix="/api")
 
     @app.get("/api/healthz", tags=["ops"])

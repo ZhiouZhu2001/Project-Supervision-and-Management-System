@@ -78,6 +78,7 @@ async def upload_attachment(
         byte_size=stored.byte_size,
         width=stored.width,
         height=stored.height,
+        sha256=stored.sha256,
     )
     db.add(attachment)
     await db.commit()

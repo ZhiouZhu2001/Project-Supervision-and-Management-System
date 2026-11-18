@@ -25,6 +25,9 @@ class Attachment(Base):
     storage_path: Mapped[str] = mapped_column(String(160), nullable=False)
     content_type: Mapped[str] = mapped_column(String(40), nullable=False)
     byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Digest of the stored bytes, so an export can prove a file is the same one
+    # without carrying the file itself.
+    sha256: Mapped[str | None] = mapped_column(String(64))
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
