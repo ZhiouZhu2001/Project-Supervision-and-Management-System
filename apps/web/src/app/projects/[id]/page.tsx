@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AppShell, LoadingProjects, PageHeading } from "@/components/app-shell";
 import { Icon } from "@/components/icon";
+import { ProjectLogs } from "@/components/project-logs";
 import { ProjectSchedule } from "@/components/project-schedule";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -243,29 +244,7 @@ export default function ProjectDetailPage() {
             </form>
           </Card>
 
-          <Card aria-labelledby="logs-heading">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <h2 id="logs-heading" className="text-[15px] font-[600] text-foreground">
-                Project logs
-              </h2>
-              <span className="inline-flex items-center gap-[6px] whitespace-nowrap rounded-[5px] bg-pill px-[9px] py-[5px] text-[10px] font-[550] text-pill-ink">
-                Not recorded
-              </span>
-            </div>
-            <div className="flex items-center gap-[15px]">
-              <span className="grid h-[44px] w-[42px] shrink-0 place-items-center rounded-[10px] bg-sage text-sage-ink">
-                <Icon name="book" />
-              </span>
-              <div className="flex flex-col gap-1">
-                <strong className="text-[13px] font-[600] text-foreground">
-                  The story starts here.
-                </strong>
-                <p className="text-[12px] text-muted-foreground">
-                  No logs yet. Recording is not available in this version.
-                </p>
-              </div>
-            </div>
-          </Card>
+          <ProjectLogs projectId={id} />
         </div>
 
         <aside className="flex flex-col gap-4">
