@@ -67,3 +67,14 @@ def test_weekday_numbers_must_be_iso_range() -> None:
 
 def test_duplicates_are_collapsed() -> None:
     assert validate_rest_weekdays([6, 7, 6]) == frozenset({6, 7})
+
+def test_an_inherit_row_returns_to_the_default_in_force_that_day() -> None:
+    # R14: closing an override is an appended row carrying no weekday set.
+    rules = [
+        (date(2026, 1, 1), frozenset({6, 7})),
+        (date(2026, 6, 1), None),
+    ]
+
+    assert rest_weekdays_for(date(2026, 5, 31), rules, frozenset({1})) == frozenset({6, 7})
+    assert rest_weekdays_for(date(2026, 6, 1), rules, frozenset({1})) == frozenset({1})
+    assert rest_weekdays_for(date(2027, 1, 1), rules, frozenset({2})) == frozenset({2})

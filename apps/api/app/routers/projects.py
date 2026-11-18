@@ -1,9 +1,9 @@
-from datetime import date, timedelta
+﻿from datetime import date, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import now_utc
@@ -237,7 +237,9 @@ async def _latest_rule(
 
 async def _schedule_view(db: AsyncSession, project_id: UUID, today: date) -> ScheduleView:
     own = await _latest_rule(db, project_id=project_id, today=today)
-    if own is not None:
+    # The latest own row decides: an explicit set is an override in force, an
+    # inherit row means the override was closed on that date (R14).
+    if own is not None and not own.inherits_default:
         return ScheduleView(
             rest_weekdays=sorted(own.rest_weekdays),
             effective_from=own.effective_from,
@@ -304,6 +306,7 @@ async def update_schedule(
         db.add(rule)
     else:
         rule.rest_weekdays = sorted(weekdays)
+        rule.inherits_default = False
 
     await db.commit()
     return await _schedule_view(db, project_id, today)
@@ -315,9 +318,35 @@ async def clear_schedule(
     _account: CurrentAccount,
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> ScheduleView:
-    """Drop the override so the project follows the account default again."""
+    """Stop the override from today, without rewriting what it meant before (R14).
+
+    Deleting the rows would resurrect days the owner had exempted, so the
+    override is closed by appending a row that inherits the account default
+    from today — including whatever changes are made to that default later.
+    """
     await _load(db, project_id)
-    await db.execute(delete(ScheduleRule).where(ScheduleRule.project_id == project_id))
+    today = today_business_date()
+    rule = await db.scalar(
+        select(ScheduleRule).where(
+            ScheduleRule.project_id == project_id,
+            ScheduleRule.effective_from == today,
+        )
+    )
+    if rule is None:
+        db.add(
+            ScheduleRule(
+                project_id=project_id,
+                rest_weekdays=[],
+                effective_from=today,
+                inherits_default=True,
+            )
+        )
+    else:
+        rule.inherits_default = True
+        rule.rest_weekdays = []
     await db.commit()
-    return await _schedule_view(db, project_id, today_business_date())
+    return await _schedule_view(db, project_id, today)
+
+
+
 

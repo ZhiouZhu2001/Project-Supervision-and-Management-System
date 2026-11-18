@@ -1,4 +1,4 @@
-"""Rest-day rules (R7) and their effective-date semantics (R14).
+﻿"""Rest-day rules (R7) and their effective-date semantics (R14).
 
 A rule is `(effective_from, weekdays)`. The rule in force on a day is the
 latest one whose effective date has arrived, which is what makes a change
@@ -17,7 +17,10 @@ from app.models.schedule import ScheduleRule
 
 DEFAULT_REST_WEEKDAYS: frozenset[int] = frozenset({6, 7})
 
-RestRule = tuple[date, frozenset[int]]
+RestRule = tuple[date, frozenset[int] | None]
+# A None weekday set is an appended row that closes an override: from its
+# effective date the project follows the account default in force that day.
+# Deleting the old rows instead would rewrite what past days meant (R14).
 
 
 async def load_rules(
@@ -35,7 +38,10 @@ async def load_rules(
     global_rules: list[RestRule] = []
     by_project: dict[UUID, list[RestRule]] = {}
     for rule in rows:
-        entry: RestRule = (rule.effective_from, frozenset(rule.rest_weekdays))
+        entry: RestRule = (
+            rule.effective_from,
+            None if rule.inherits_default else frozenset(rule.rest_weekdays),
+        )
         if rule.project_id is None:
             global_rules.append(entry)
         else:
@@ -51,14 +57,14 @@ def rest_weekdays_for(
     """Weekdays that count as rest on `day`.
 
     `rules` must be ascending by effective date. A rule that starts later than
-    `day` is not consulted — that is the whole point of the effective date.
+    `day` is not consulted â€” that is the whole point of the effective date.
     """
-    chosen = default
+    chosen: frozenset[int] | None = None
     for effective_from, weekdays in rules:
         if effective_from > day:
             break
         chosen = weekdays
-    return chosen
+    return default if chosen is None else chosen
 
 
 def resolver(
@@ -76,7 +82,7 @@ def resolver(
 def validate_rest_weekdays(weekdays: Sequence[int]) -> frozenset[int]:
     """Reject values that would stop the product working.
 
-    An empty set is allowed — it means "no rest days". All seven is refused,
+    An empty set is allowed â€” it means "no rest days". All seven is refused,
     because it means no expected days, which means every streak is
     permanently zero: an easy mistake to make and a confusing one to debug.
     """
@@ -86,3 +92,4 @@ def validate_rest_weekdays(weekdays: Sequence[int]) -> frozenset[int]:
     if set(unique) == set(range(1, 8)):
         raise ValueError("at least one weekday must stay expected")
     return frozenset(unique)
+
