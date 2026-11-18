@@ -237,6 +237,9 @@ next-env.d.ts
 *.log
 .pnpm-store/
 
+# --- Certificates (self-signed rehearsal never leaves the machine) ---
+infra/nginx/certs-local/
+
 
 # --- Local git credentials / host keys ---
 .secrets/

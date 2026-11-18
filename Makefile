@@ -8,7 +8,7 @@ COMPOSE := docker compose -f docker-compose.yml -f docker-compose.dev.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev down logs ps build restart migrate migration test test-api test-web lint fmt psql shell-api health nuke
+.PHONY: help setup dev down logs ps build restart migrate migration test test-api test-web lint fmt psql shell-api health nuke backup restore-drill
 
 help:
 > @echo "make dev          bring the stack up (build + start + health check)"
@@ -24,6 +24,8 @@ help:
 > @echo "make fmt          ruff format + prettier"
 > @echo "make psql         psql into the database"
 > @echo "make health       curl the health endpoint"
+> @echo "make backup       run the backup sidecar once"
+> @echo "make restore-drill restore the newest snapshot into a scratch database"
 > @echo "make nuke         stop and delete volumes"
 
 setup:
@@ -79,6 +81,13 @@ shell-api:
 
 health:
 > @curl -fsS http://localhost:8080/api/healthz && echo "" || (echo "health check failed — see make logs" && exit 1)
+
+backup:
+> docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm backup /usr/local/bin/backup.sh
+
+restore-drill:
+> @echo "see docs/BACKUP.md: the drill needs a scratch database and two volumes"
+> @echo "the exact procedure and its last result are recorded there"
 
 nuke:
 > $(COMPOSE) down -v

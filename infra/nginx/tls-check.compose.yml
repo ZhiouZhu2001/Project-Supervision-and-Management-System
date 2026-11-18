@@ -1,0 +1,30 @@
+name: psms-tls-check
+
+# Local rehearsal of the production edge: real template, real volume, a
+# self-signed certificate on loopback ports. Nothing here is deployed; it
+# exists so the production configuration is exercised rather than assumed.
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    environment:
+      DOMAIN: localhost
+    ports:
+      - "18081:80"
+      - "18443:443"
+    volumes:
+      - ./templates/daymark.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs-local:/etc/letsencrypt:ro
+      - uploads:/data/uploads:ro
+    networks:
+      - internal
+
+volumes:
+  uploads:
+    external: true
+    name: psms_uploads
+
+networks:
+  internal:
+    external: true
+    name: psms_internal

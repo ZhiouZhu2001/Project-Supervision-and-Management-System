@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # In-process scheduler (invariant 8). Lets a one-off process opt out.
     scheduler_enabled: bool = True
 
+    # The backup sidecar writes its verdict here; /healthz reads it, so a
+    # silent backup failure is visible from outside.
+    backup_status_file: str = "/data/backup-status/status.json"
+
     # The single account, seeded on first boot. There is no registration.
     app_email: str = "owner@example.com"
     app_password: str = DEVELOPMENT_PASSWORD

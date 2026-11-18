@@ -1,0 +1,83 @@
+# Production overlay. Nothing here publishes a database or API port: the only
+# ingress is the proxy, and the only things it talks to are on the compose
+# network. `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
+# is the whole deployment.
+
+services:
+  api:
+    environment:
+      APP_ENV: production
+      APP_BASE_URL: https://${DOMAIN}
+      # Set on the host; the application refuses to boot with the
+      # development secret or password in production.
+      APP_SECRET_KEY: ${APP_SECRET_KEY}
+      APP_PASSWORD: ${APP_PASSWORD}
+      APP_EMAIL: ${APP_EMAIL}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+    volumes:
+      # Read-only: the API reports the backup verdict, it never writes one.
+      - backup-status:/data/backup-status:ro
+    restart: always
+
+  web:
+    restart: always
+
+  db:
+    restart: always
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      # The only published ports in the whole stack.
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./infra/nginx/templates/daymark.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot:ro
+      - uploads:/data/uploads:ro
+    restart: always
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    # Renewal is checked twice a day; certbot only acts inside the last 30
+    # days of a certificate's life, so most runs do nothing and say so.
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
+    restart: always
+
+  backup:
+    build:
+      context: ./infra/backup
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-supervision}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-12}
+      TZ: Europe/Madrid
+    volumes:
+      - uploads:/data/uploads:ro
+      - backup-status:/data/backup-status
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  letsencrypt:
+  certbot-webroot:
+  backup-status:

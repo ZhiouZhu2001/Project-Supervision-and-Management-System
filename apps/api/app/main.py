@@ -25,6 +25,7 @@ from app.routers.settings import router as settings_router
 from app.routers.stats import router as stats_router
 from app.routers.today import router as today_router
 from app.services.alerts import last_judged_business_date
+from app.services.backup_status import read_backup_status
 from app.services.mail import build_mailer
 
 # uvicorn already configures this logger, so the scheduling line appears in
@@ -179,6 +180,8 @@ def create_app() -> FastAPI:
             "env": settings.app_env,
             "time": now_utc().isoformat(),
             "last_alert_business_date": last_alert,
+            # A stale or failed backup is a defect, not a statistic.
+            "last_backup": read_backup_status(),
         }
         return JSONResponse(body, status_code=200 if database_ok else 503)
 
