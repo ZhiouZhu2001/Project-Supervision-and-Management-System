@@ -123,11 +123,11 @@ export function ProjectStatusCard({ project }: { project: Project }) {
       {confirming === "active" ? (
         <div className="mt-4 flex flex-col gap-3">
           <p className="text-[12px] text-foreground">
-            Reactivate “{project.name}”? It starts expecting records again from today.
+            Bring “{project.name}” back? It starts expecting records again from today.
           </p>
           <div className="flex items-center gap-2">
             <Button type="button" size="sm" disabled={change.isPending} onClick={() => change.mutate("active")}>
-              {change.isPending ? "Reactivating…" : "Yes, reactivate"}
+              {change.isPending ? "Restoring…" : "Yes, unarchive"}
             </Button>
             <Button type="button" variant="subtle" size="sm" onClick={() => setConfirming(null)}>
               Cancel
@@ -146,6 +146,15 @@ export function ProjectStatusCard({ project }: { project: Project }) {
               <Button type="button" variant="subtle" size="sm" onClick={() => setConfirming("finished")}>
                 Finish this project
               </Button>
+              <Button
+                type="button"
+                variant="subtle"
+                size="sm"
+                disabled={change.isPending}
+                onClick={() => change.mutate("archived")}
+              >
+                Archive
+              </Button>
             </>
           ) : null}
 
@@ -157,12 +166,21 @@ export function ProjectStatusCard({ project }: { project: Project }) {
               <Button type="button" variant="subtle" size="sm" onClick={() => setConfirming("finished")}>
                 Finish this project
               </Button>
+              <Button
+                type="button"
+                variant="subtle"
+                size="sm"
+                disabled={change.isPending}
+                onClick={() => change.mutate("archived")}
+              >
+                Archive
+              </Button>
             </>
           ) : null}
 
           {project.status === "archived" ? (
             <Button type="button" variant="subtle" size="sm" onClick={() => setConfirming("active")}>
-              Reactivate
+              Unarchive
             </Button>
           ) : null}
         </div>

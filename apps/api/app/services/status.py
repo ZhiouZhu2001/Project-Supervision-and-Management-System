@@ -38,14 +38,17 @@ def status_resolver(rules: Sequence[StatusRule], default: str = "active"):
 def can_transition(current: str, target: str) -> bool:
     """Guard the state machine.
 
-    Finishing is deliberately one-way through the interface (ticket 19): a
-    finished project is a statement that the work is done, and letting it slip
-    back to active would make the word mean nothing.
+    Finishing is terminal through the interface (ticket 19): a finished project
+    is a statement that the work is done, and ticket 20 is explicit that it
+    cannot even be filed away afterwards. Archiving is the reversible one, so
+    it is the only status that can come back.
     """
+    if current == "finished":
+        return False
     if current == target:
         return False
-    if current == "finished":
-        return target == "archived"
+    if current == "archived":
+        return target == "active"
     return target in {"active", "paused", "finished", "archived"}
 
 

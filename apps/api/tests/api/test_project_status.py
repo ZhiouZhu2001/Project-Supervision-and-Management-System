@@ -243,8 +243,67 @@ async def test_a_finished_project_cannot_be_unfinished(client: httpx.AsyncClient
     project_id = await _project(client)
     await _status(client, project_id, "finished")
 
-    for target in ("active", "paused"):
+    for target in ("active", "paused", "archived"):
         response = await _status(client, project_id, target)
         assert response.status_code == 422, target
 
+
+async def test_archiving_hides_a_project_and_unarchiving_brings_it_back(
+    client: httpx.AsyncClient,
+) -> None:
+    await _login(client)
+    project_id = await _project(client)
+
     assert (await _status(client, project_id, "archived")).status_code == 200
+    assert (await client.get(TODAY)).json()["projects"] == []
+    assert (await client.get(PROJECTS)).json()[0]["status"] == "archived"
+
+    assert (await _status(client, project_id, "active")).status_code == 200
+    assert len((await client.get(TODAY)).json()["projects"]) == 1
+
+
+async def test_archiving_leaves_every_log_alone(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    project_id = await _project(client)
+    created = await client.post(LOGS, json={"project_id": project_id, "content": "kept"})
+
+    await _status(client, project_id, "archived")
+    await _status(client, project_id, "active")
+
+    logs = (await client.get(LOGS, params={"project_id": project_id})).json()
+    assert [log["id"] for log in logs] == [created.json()["id"]]
+    assert logs[0]["content"] == "kept"
+
+
+async def test_unarchiving_restores_the_streak_it_had(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _login(client)
+    project_id = await _project(client)
+    await _backdate(session_factory, project_id, 10)
+
+    today = today_business_date()
+    async with session_factory() as session:
+        session.add(
+            ScheduleRule(
+                project_id=None, rest_weekdays=[], effective_from=today - timedelta(days=10)
+            )
+        )
+        for offset in (1, 0):
+            session.add(
+                Log(
+                    project_id=UUID(project_id),
+                    business_date=today - timedelta(days=offset),
+                    content="work",
+                    backfilled=False,
+                )
+            )
+        await session.commit()
+
+    before = (await client.get(f"{PROJECTS}/{project_id}/stats")).json()
+    await _status(client, project_id, "archived")
+    await _status(client, project_id, "active")
+    after = (await client.get(f"{PROJECTS}/{project_id}/stats")).json()
+
+    assert before == {"current_streak": 2, "longest_streak": 2}
+    assert after == before
