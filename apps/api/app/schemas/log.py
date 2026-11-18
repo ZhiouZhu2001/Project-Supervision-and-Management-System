@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.attachment import AttachmentView
+
 
 def _clean_tags(tags: list[str]) -> list[str]:
     seen: list[str] = []
@@ -81,3 +83,4 @@ class LogView(BaseModel):
     backfilled: bool
     created_at: datetime
     tags: list[str] = Field(default_factory=list)
+    attachments: list[AttachmentView] = Field(default_factory=list)

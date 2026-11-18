@@ -17,15 +17,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import now_utc
 from app.db import get_session_factory
+from app.models.attachment import Attachment
 from app.models.log import Log
 from app.models.project import Project
 from app.services.retention import RETENTION
+from app.services.storage import delete_image
 
 
 @dataclass
 class PurgeReport:
     projects: int = 0
     logs: int = 0
+    files: int = 0
 
 
 async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> PurgeReport:
@@ -34,6 +37,24 @@ async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> Pur
     expired_projects = list(
         await db.scalars(select(Project.id).where(Project.deleted_at <= cutoff))
     )
+    expired_logs = list(await db.scalars(select(Log.id).where(Log.deleted_at <= cutoff)))
+    if expired_projects:
+        expired_logs += list(
+            await db.scalars(select(Log.id).where(Log.project_id.in_(expired_projects)))
+        )
+
+    # Files first: if the row disappears before the file, the bytes are lost
+    # to the database with no way to find them again.
+    files = 0
+    if expired_logs:
+        paths = list(
+            await db.scalars(
+                select(Attachment.storage_path).where(Attachment.log_id.in_(expired_logs))
+            )
+        )
+        for path in paths:
+            delete_image(path)
+            files += 1
 
     # Logs deleted on their own, independent of their project.
     orphan_logs = await db.execute(delete(Log).where(Log.deleted_at <= cutoff))
@@ -53,6 +74,7 @@ async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> Pur
     return PurgeReport(
         projects=len(expired_projects),
         logs=(orphan_logs.rowcount or 0) + project_logs,
+        files=files,
     )
 
 

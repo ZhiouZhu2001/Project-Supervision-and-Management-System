@@ -1,4 +1,5 @@
 import os
+import tempfile
 from collections.abc import AsyncIterator
 
 import pytest
@@ -11,6 +12,11 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+
+# Uploads go to a throwaway directory: the suite must never write into the
+# volume the running application uses. Assigned rather than defaulted, because
+# compose already exports UPLOAD_DIR and `setdefault` would inherit it.
+os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="psms-uploads-")
 
 from app.bootstrap import ensure_account
 from app.config import get_settings

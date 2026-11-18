@@ -11,6 +11,7 @@ from app.clock import now_utc
 from app.config import DEVELOPMENT_PASSWORD, DEVELOPMENT_SECRET, get_settings
 from app.db import check_database, dispose_engine, get_session_factory
 from app.errors import ApiError, api_error_handler, error_body
+from app.routers.attachments import router as attachments_router
 from app.routers.auth import router as auth_router
 from app.routers.calendar import router as calendar_router
 from app.routers.logs import router as logs_router
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_router, prefix="/api")
     app.include_router(logs_router, prefix="/api")
     app.include_router(calendar_router, prefix="/api")
+    app.include_router(attachments_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
     app.include_router(today_router, prefix="/api")
 

@@ -10,9 +10,11 @@ from app.clock import now_utc
 from app.db import get_session
 from app.deps import CurrentAccount
 from app.errors import ApiError, project_not_found
+from app.models.attachment import Attachment
 from app.models.log import Log
 from app.models.log_tag import LogTag
 from app.models.project import Project
+from app.schemas.attachment import AttachmentView, attachment_url
 from app.schemas.log import LogCreate, LogUpdate, LogView
 from app.services.business_day import (
     BACKFILL_MAX_PER_DAY,
@@ -38,9 +40,37 @@ async def _tags_for(db: AsyncSession, log_ids: list[UUID]) -> dict[UUID, list[st
     return grouped
 
 
+async def _attachments_for(
+    db: AsyncSession, log_ids: list[UUID]
+) -> dict[UUID, list[AttachmentView]]:
+    if not log_ids:
+        return {}
+    rows = await db.scalars(
+        select(Attachment)
+        .where(Attachment.log_id.in_(log_ids), Attachment.deleted_at.is_(None))
+        .order_by(Attachment.created_at)
+    )
+    grouped: dict[UUID, list[AttachmentView]] = {}
+    for attachment in rows:
+        grouped.setdefault(attachment.log_id, []).append(
+            AttachmentView(
+                id=attachment.id,
+                log_id=attachment.log_id,
+                url=attachment_url(attachment.id),
+                width=attachment.width,
+                height=attachment.height,
+                byte_size=attachment.byte_size,
+                content_type=attachment.content_type,
+                created_at=attachment.created_at,
+            )
+        )
+    return grouped
+
+
 async def _view(db: AsyncSession, log: Log) -> LogView:
     view = LogView.model_validate(log)
     view.tags = (await _tags_for(db, [log.id])).get(log.id, [])
+    view.attachments = (await _attachments_for(db, [log.id])).get(log.id, [])
     return view
 
 
@@ -80,10 +110,12 @@ async def list_logs(
         )
     )
     tags = await _tags_for(db, [log.id for log in rows])
+    attachments = await _attachments_for(db, [log.id for log in rows])
     views: list[LogView] = []
     for log in rows:
         view = LogView.model_validate(log)
         view.tags = tags.get(log.id, [])
+        view.attachments = attachments.get(log.id, [])
         views.append(view)
     return views
 

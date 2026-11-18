@@ -10,6 +10,6 @@
 
 - [ ] A fifth image on one log is rejected with 422, and the four existing images remain intact.
 - [ ] An image above the size limit is rejected with 422, and the request body limit at the proxy rejects oversized uploads before they reach the application.
-- [ ] Deleting an image removes both the stored file and its metadata row.
-- [ ] Deleting or purging a log removes all of its images, leaving no orphaned files on disk.
+- [ ] Deleting an image removes both the stored file and its metadata row. (Implemented as a hard delete: an image is not a record of anything, so "removed" means the row and the bytes, not a hidden flag.)
+- [ ] Deleting or purging a log removes all of its images, leaving no orphaned files on disk. (A soft-deleted log makes its images unreachable immediately and keeps the rows so a restore brings the pictures back; the purge job deletes the files before the rows, and reports how many it removed.)
 - [ ] Storage paths are partitioned by month and collision-free under concurrent uploads.

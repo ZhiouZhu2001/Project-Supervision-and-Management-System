@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, deleteLog, listLogs, restoreLog, updateLog, type LogView } from "@/lib/api";
+import { ApiError, deleteAttachment, deleteLog, listLogs, restoreLog, updateLog, uploadAttachment, type Attachment, type LogView } from "@/lib/api";
 
 export function ProjectLogs({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
@@ -43,6 +43,33 @@ export function ProjectLogs({ projectId }: { projectId: string }) {
       setUndoable(null);
       await refresh();
     },
+  });
+
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  const attach = useMutation({
+    mutationFn: ({ logId, file }: { logId: string; file: File }) =>
+      uploadAttachment(logId, file),
+    onSuccess: async () => {
+      setImageError(null);
+      await refresh();
+    },
+    onError: (cause: unknown) => {
+      if (cause instanceof ApiError && cause.code === "ATTACHMENT_LIMIT_REACHED") {
+        setImageError("Four images is the limit for one entry.");
+      } else if (cause instanceof ApiError && cause.code === "ATTACHMENT_TOO_LARGE") {
+        setImageError("That image is larger than 5 MB.");
+      } else if (cause instanceof ApiError && cause.code === "ATTACHMENT_TYPE_UNSUPPORTED") {
+        setImageError("Only JPEG, PNG and WebP images can be attached.");
+      } else {
+        setImageError("Could not attach that image.");
+      }
+    },
+  });
+
+  const detach = useMutation({
+    mutationFn: (attachment: Attachment) => deleteAttachment(attachment.id),
+    onSuccess: refresh,
   });
 
   const save = useMutation({
@@ -177,6 +204,52 @@ export function ProjectLogs({ projectId }: { projectId: string }) {
                           {tag}
                         </span>
                       ))}
+                    </span>
+                  ) : null}
+
+                  <span className="mt-1 flex flex-wrap items-center gap-2">
+                    {log.attachments.map((attachment) => (
+                      <span key={attachment.id} className="relative inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={attachment.url}
+                          alt={`Attachment on ${log.business_date}`}
+                          className="h-[64px] w-[86px] rounded-[6px] border border-border object-cover"
+                        />
+                        <button
+                          type="button"
+                          aria-label="Remove image"
+                          disabled={detach.isPending}
+                          onClick={() => detach.mutate(attachment)}
+                          className="absolute -right-1 -top-1 grid h-[18px] w-[18px] place-items-center rounded-full bg-foreground text-[11px] leading-none text-card"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+
+                    {log.attachments.length < 4 ? (
+                      <label className="inline-flex min-h-[32px] cursor-pointer items-center rounded-[7px] border border-dashed border-border px-3 text-[11px] font-[550] text-muted-foreground hover:bg-secondary">
+                        {attach.isPending && attach.variables?.logId === log.id
+                          ? "Uploading…"
+                          : "Add image"}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) attach.mutate({ logId: log.id, file });
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                    ) : null}
+                  </span>
+
+                  {imageError ? (
+                    <span role="alert" className="text-[11px] text-destructive">
+                      {imageError}
                     </span>
                   ) : null}
                 </div>

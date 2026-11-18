@@ -14,6 +14,10 @@ dependencies = [
     "alembic>=1.14,<2",
     # zoneinfo needs a timezone database; the slim image does not ship one.
     "tzdata>=2024.1",
+    # Uploads: multipart parsing and real image decoding instead of
+    # trusting a declared content type.
+    "python-multipart>=0.0.12,<1",
+    "pillow>=11.0,<12",
 ]
 
 [dependency-groups]

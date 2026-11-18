@@ -42,12 +42,16 @@ services:
       APP_EMAIL: ${APP_EMAIL:-owner@example.com}
       APP_PASSWORD: ${APP_PASSWORD:-devpassword}
       RUN_MIGRATIONS: "1"
+      UPLOAD_DIR: /data/uploads
       TZ: UTC
     depends_on:
       db:
         condition: service_healthy
     expose:
       - "8000"
+    volumes:
+      # Shared with nginx, which serves the files through X-Accel-Redirect.
+      - uploads:/data/uploads
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/healthz', timeout=3).status == 200 else 1)"]
       interval: 10s
@@ -80,6 +84,7 @@ services:
     image: nginx:1.27-alpine
     volumes:
       - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - uploads:/data/uploads:ro
     depends_on:
       - web
       - api
@@ -88,6 +93,7 @@ services:
 
 volumes:
   pgdata:
+  uploads:
 
 networks:
   internal:

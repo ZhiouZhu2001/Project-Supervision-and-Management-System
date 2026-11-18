@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     app_secret_key: str = DEVELOPMENT_SECRET
     database_url: str = "postgresql+asyncpg://app:devpassword@db:5432/supervision"
 
+    # Where uploaded images live. The proxy serves them from the same volume
+    # through X-Accel-Redirect, so Python never streams a file body.
+    upload_dir: str = "/data/uploads"
+
     # The single account, seeded on first boot. There is no registration.
     app_email: str = "owner@example.com"
     app_password: str = DEVELOPMENT_PASSWORD
