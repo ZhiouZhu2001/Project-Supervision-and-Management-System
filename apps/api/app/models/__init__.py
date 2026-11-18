@@ -1,4 +1,5 @@
 from app.models.account import Account
+from app.models.alert import AlertLog
 from app.models.attachment import Attachment
 from app.models.base import Base
 from app.models.log import Log
@@ -10,6 +11,7 @@ from app.models.status import ProjectStatusChange
 
 __all__ = [
     "Account",
+    "AlertLog",
     "Attachment",
     "Base",
     "Log",

@@ -20,7 +20,7 @@ os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="psms-uploads-")
 
 from app.bootstrap import ensure_account
 from app.config import get_settings
-from app.db import get_session
+from app.db import dispose_engine, get_session
 from app.main import create_app
 from app.models import Base
 
@@ -55,6 +55,17 @@ async def _create_database_if_missing(url_str: str) -> None:
                 await connection.execute(text(f'CREATE DATABASE "{url.database}"'))
     finally:
         await admin.dispose()
+
+
+@pytest.fixture(autouse=True)
+async def _fresh_engine_per_test() -> AsyncIterator[None]:
+    """Drop the module-level engine after every test.
+
+    pytest-asyncio gives each test its own event loop, and an engine cached in
+    a module global keeps connections bound to the previous, now closed loop.
+    """
+    yield
+    await dispose_engine()
 
 
 @pytest.fixture

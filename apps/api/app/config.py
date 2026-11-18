@@ -21,6 +21,20 @@ class Settings(BaseSettings):
     # through X-Accel-Redirect, so Python never streams a file body.
     upload_dir: str = "/data/uploads"
 
+    # Outbound mail. Empty host means "not configured": the digest records the
+    # attempt and fails loudly in the log rather than pretending to send.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_starttls: bool = True
+    # Where the digest goes; falls back to the owner's address.
+    alert_email: str = ""
+
+    # In-process scheduler (invariant 8). Lets a one-off process opt out.
+    scheduler_enabled: bool = True
+
     # The single account, seeded on first boot. There is no registration.
     app_email: str = "owner@example.com"
     app_password: str = DEVELOPMENT_PASSWORD
