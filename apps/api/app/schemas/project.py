@@ -57,3 +57,18 @@ class ProjectView(BaseModel):
     created_business_date: date
     status: str
     sort_order: int
+
+
+class ScheduleView(BaseModel):
+    """The rest-day rule in force for one project today (R7)."""
+
+    rest_weekdays: list[int]
+    effective_from: date | None
+    inherited: bool
+
+
+class ScheduleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rest_weekdays: list[int] = Field(max_length=7)
+    effective_from: date | None = None

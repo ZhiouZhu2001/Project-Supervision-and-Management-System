@@ -1,17 +1,26 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import now_utc
 from app.db import get_session
 from app.deps import CurrentAccount
-from app.errors import project_not_found
+from app.errors import ApiError, project_not_found
 from app.models.project import Project
-from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectView
-from app.services.business_day import today_business_date
+from app.models.schedule import ScheduleRule
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectView,
+    ScheduleUpdate,
+    ScheduleView,
+)
+from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
+from app.services.schedule import DEFAULT_REST_WEEKDAYS, validate_rest_weekdays
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -91,3 +100,106 @@ async def update_project(
     await db.commit()
     await db.refresh(project)
     return ProjectView.model_validate(project)
+
+
+async def _latest_rule(
+    db: AsyncSession, *, project_id: UUID | None, today: date
+) -> ScheduleRule | None:
+    condition = (
+        ScheduleRule.project_id.is_(None)
+        if project_id is None
+        else ScheduleRule.project_id == project_id
+    )
+    return await db.scalar(
+        select(ScheduleRule)
+        .where(condition, ScheduleRule.effective_from <= today)
+        .order_by(ScheduleRule.effective_from.desc())
+        .limit(1)
+    )
+
+
+async def _schedule_view(db: AsyncSession, project_id: UUID, today: date) -> ScheduleView:
+    own = await _latest_rule(db, project_id=project_id, today=today)
+    if own is not None:
+        return ScheduleView(
+            rest_weekdays=sorted(own.rest_weekdays),
+            effective_from=own.effective_from,
+            inherited=False,
+        )
+
+    shared = await _latest_rule(db, project_id=None, today=today)
+    if shared is None:
+        return ScheduleView(
+            rest_weekdays=sorted(DEFAULT_REST_WEEKDAYS), effective_from=None, inherited=True
+        )
+    return ScheduleView(
+        rest_weekdays=sorted(shared.rest_weekdays),
+        effective_from=shared.effective_from,
+        inherited=True,
+    )
+
+
+@router.get("/{project_id}/schedule")
+async def read_schedule(
+    project_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ScheduleView:
+    await _load(db, project_id)
+    return await _schedule_view(db, project_id, today_business_date())
+
+
+@router.put("/{project_id}/schedule")
+async def update_schedule(
+    project_id: UUID,
+    payload: ScheduleUpdate,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ScheduleView:
+    await _load(db, project_id)
+    today = today_business_date()
+
+    try:
+        weekdays = validate_rest_weekdays(payload.rest_weekdays)
+    except ValueError as exc:
+        raise ApiError(422, "REST_DAYS_INVALID", str(exc)) from exc
+
+    effective_from = payload.effective_from or today
+    try:
+        validate_business_date(effective_from, today=today)
+    except BusinessDateError as exc:
+        raise ApiError(422, exc.code, exc.message) from exc
+
+    # Same shape as the global rule: one row per effective date, updated in
+    # place when the owner changes their mind on the same day.
+    rule = await db.scalar(
+        select(ScheduleRule).where(
+            ScheduleRule.project_id == project_id,
+            ScheduleRule.effective_from == effective_from,
+        )
+    )
+    if rule is None:
+        rule = ScheduleRule(
+            project_id=project_id,
+            rest_weekdays=sorted(weekdays),
+            effective_from=effective_from,
+        )
+        db.add(rule)
+    else:
+        rule.rest_weekdays = sorted(weekdays)
+
+    await db.commit()
+    return await _schedule_view(db, project_id, today)
+
+
+@router.delete("/{project_id}/schedule")
+async def clear_schedule(
+    project_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> ScheduleView:
+    """Drop the override so the project follows the account default again."""
+    await _load(db, project_id)
+    await db.execute(delete(ScheduleRule).where(ScheduleRule.project_id == project_id))
+    await db.commit()
+    return await _schedule_view(db, project_id, today_business_date())

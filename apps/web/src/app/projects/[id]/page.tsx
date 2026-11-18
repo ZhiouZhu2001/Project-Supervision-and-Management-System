@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AppShell, LoadingProjects, PageHeading } from "@/components/app-shell";
 import { Icon } from "@/components/icon";
+import { ProjectSchedule } from "@/components/project-schedule";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -299,6 +300,8 @@ export default function ProjectDetailPage() {
               Start date and status stay unchanged when you edit these details.
             </p>
           </Card>
+
+          <ProjectSchedule projectId={id} />
 
           <p className="flex items-start gap-2 rounded-[10px] bg-[#f3f4ec] px-4 py-3 text-[12px] text-muted-foreground">
             <Icon name="info" size={17} />
