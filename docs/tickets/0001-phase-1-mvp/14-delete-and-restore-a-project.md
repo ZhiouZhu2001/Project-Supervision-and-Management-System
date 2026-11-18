@@ -6,7 +6,7 @@
 
 **Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Deleting a project requires a confirmation naming the project, and immediately hides it from the list, today's view, the calendar and the statistics.
 - [ ] Restoring within thirty days returns the project with its logs intact and its streak recomputed to exactly the pre-deletion value.

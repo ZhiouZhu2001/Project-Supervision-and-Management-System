@@ -4,7 +4,7 @@
 
 **Blocked by:** 28
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A nightly job dumps the database and increments the image store, encrypts both, and uploads them off the machine.
 - [ ] Retention keeps seven daily, four weekly and twelve monthly snapshots, and prunes older ones automatically.

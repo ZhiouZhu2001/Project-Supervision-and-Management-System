@@ -6,7 +6,7 @@
 
 **Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A twelve-week rollup reports recorded against expected for each of the last twelve weeks.
 - [ ] A thirty-day log count reports how many logs were written in the last thirty business days.

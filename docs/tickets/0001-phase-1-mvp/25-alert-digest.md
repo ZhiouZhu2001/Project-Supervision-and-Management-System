@@ -4,7 +4,7 @@
 
 **Blocked by:** 11, 18
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Triggering the digest sends exactly one email listing every active project whose current business day is an expected day with no log.
 - [ ] Each entry carries the project name, its current streak, its consecutive missed days, and a direct link into the application.

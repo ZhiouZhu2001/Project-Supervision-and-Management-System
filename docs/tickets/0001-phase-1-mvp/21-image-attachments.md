@@ -6,7 +6,7 @@
 
 **Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Up to four images can be attached to a log, each no larger than 5 MB.
 - [ ] Only JPEG, PNG and WebP are accepted, and the type is decided by decoding the bytes, not by trusting the declared content type or the filename extension.

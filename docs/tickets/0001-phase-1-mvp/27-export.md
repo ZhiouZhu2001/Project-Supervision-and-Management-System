@@ -4,7 +4,7 @@
 
 **Blocked by:** 17, 20, 11
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A single download contains projects, logs, tags, attachment metadata, schedule rules and status history.
 - [ ] Attachment metadata includes checksums and stored identifiers but not the file bytes.

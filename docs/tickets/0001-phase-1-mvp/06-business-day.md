@@ -6,7 +6,7 @@
 
 **Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The current business day is shown somewhere always visible in the interface.
 - [ ] With the clock at 03:59 local the displayed day is the previous calendar date; at 04:01 it is the current one.

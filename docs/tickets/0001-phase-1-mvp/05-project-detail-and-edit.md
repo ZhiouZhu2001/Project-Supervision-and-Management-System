@@ -6,7 +6,7 @@
 
 **Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The detail page shows name, start date, status, colour and note, plus that project's logs (none yet).
 - [ ] The streak is not shown here yet; it arrives with ticket 08 and must not be faked in the meantime.

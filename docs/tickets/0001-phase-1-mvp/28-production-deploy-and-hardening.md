@@ -4,7 +4,7 @@
 
 **Blocked by:** 26
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The site is reachable on the configured domain over HTTPS, and plain HTTP redirects permanently to it.
 - [ ] The certificate renews automatically without manual intervention, and renewal has been observed at least once.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Five consecutive failures for the same account from the same source lock further attempts for fifteen minutes.
 - [ ] During the lock, even the correct password is rejected — throttling that lets the right answer through is not throttling.

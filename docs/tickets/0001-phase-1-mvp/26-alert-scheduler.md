@@ -4,7 +4,7 @@
 
 **Blocked by:** 25
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The alert fires automatically at 21:00 Europe/Madrid, computed from the business-day module rather than from a fixed server timezone.
 - [ ] Running the job twice for the same business day sends one email, not two.

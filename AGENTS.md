@@ -10,11 +10,13 @@ A single-user **self-supervision system**. The owner logs what he did each day a
 
 ## Current status
 
-**Phase 1 in progress. Tickets 01–05 are complete**: the stack comes up with `make dev`; the owner can log in, create projects, open one, and edit its name, note, colour and order. Recording a log is the next slice — until then every project reads "Not recorded", which is literally true because no log exists yet.
+**Phase 1 is complete. Tickets 01–29 are done** (`docs/tickets/0001-phase-1-mvp/`, all marked `done`).
+
+What exists: login with argon2id and session cookies; projects with a dated status history (active, paused, finished, archived); recording a log with tags, duration and up to four images; per-project and account-wide rest days; streaks with a flame at seven days; a month calendar with per-day detail and a seven-day backfill window; a twelve-week statistics page; an evening digest at 21:00 Europe/Madrid through an injected mailer; a full JSON export; a production compose overlay with TLS, security headers, rate limiting and host hardening; and an encrypted restic backup whose restore has been drilled.
+
+**The next phase is the React Native client** (Phase 2): do not scaffold anything for it until that phase is planned, but keep the API contract client-agnostic.
 
 Tickets live in `docs/tickets/0001-phase-1-mvp/`, numbered in dependency order, each declaring its blockers. Work the frontier: a ticket whose blockers are not all done is not ready.
-
-Phase 1 is web-first. The React Native client is Phase 2: **do not scaffold anything for it now**, but keep the API contract client-agnostic.
 
 All repository artifacts — documents, code, comments, commit messages, UI strings — are written in **English**. Conversation with the owner follows his language.
 

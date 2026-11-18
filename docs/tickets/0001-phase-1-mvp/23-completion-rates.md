@@ -6,7 +6,7 @@
 
 **Visuals:** every screen this ticket touches must match [`docs/interface-preview.html`](../../interface-preview.html) — see [spec 0002](../../specs/0002-web-interface-design.md). Structure, copy, tokens and components are normative; "works but looks different" is not done.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The completion rate counts backfilled days as recorded; the clean completion rate does not.
 - [ ] Both rates show a dash, not 0% or 100%, when a project has no expected days yet.
