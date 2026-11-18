@@ -333,7 +333,7 @@ Prefix `/api`. Every non-GET request validates the `Origin` header. Errors are `
 | `GET` | `/attachments/:id` | Session check, then `X-Accel-Redirect` into the internal `/protected/` location |
 | `DELETE` | `/attachments/:id` | Hard delete: row and file both go |
 | `GET` | `/calendar` | `?month=YYYY-MM` (defaults to the current business month) → per-day expected/done counts and a state bucket |
-| `GET` | `/stats` | Four metrics: per-project rates, current + longest streak, 12-week rollup, 30-day log count |
+| `GET` | `/stats` | Per-project rates and streaks, the twelve-week rollup and the thirty-day count, in one payload |
 | `GET` | `/export.json` | Full export: projects, logs, tags, attachment metadata, schedule rules, status changes |
 | `GET` | `/healthz` | Public, unauthenticated: `{db, last_alert_business_date, version}` |
 | `GET` | `/uploads/*` | Session check, then `X-Accel-Redirect` |

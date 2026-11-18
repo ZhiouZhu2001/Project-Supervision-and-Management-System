@@ -26,6 +26,7 @@ const paths = {
   rest: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z",
   calendar:
     "M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z",
+  chart: "M5 21V10M12 21V3M19 21v-7",
 } as const;
 
 export function Icon({

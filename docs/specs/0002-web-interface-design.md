@@ -23,6 +23,8 @@ Where the preview shows a state, that state is required. Where the preview is si
 
 **Two deliberate additions.** The workspace header carries the server's current business date, immediately left of the "Only you" label (`2026-11-17 · Only you`). The preview has no slot for it, but the whole product is defined by a boundary the owner cannot otherwise see, and at 02:00 the difference between "today" and "yesterday" is not guessable. Second, when the best current streak reaches seven days the account block shows `🔥 7` beside the display name, with the project it belongs to in the tooltip. Both are rendered at the existing 10–12px muted sizes so they read as metadata rather than as new elements.
 
+**Navigation grows with the screens.** The preview shows two destinations because it was drawn before the calendar, the statistics page and the settings screen existed. Calendar and Stats join the sidebar with the same icon-plus-label-plus-arrow row the preview uses, in the order Today, Projects, Calendar, Stats; Settings stays behind the gear in the account block because it is a rare visit. No other visual element is added to the navigation.
+
 ### Design tokens
 
 ```css

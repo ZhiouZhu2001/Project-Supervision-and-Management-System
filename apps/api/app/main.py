@@ -17,6 +17,7 @@ from app.routers.calendar import router as calendar_router
 from app.routers.logs import router as logs_router
 from app.routers.projects import router as projects_router
 from app.routers.settings import router as settings_router
+from app.routers.stats import router as stats_router
 from app.routers.today import router as today_router
 
 
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar_router, prefix="/api")
     app.include_router(attachments_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
+    app.include_router(stats_router, prefix="/api")
     app.include_router(today_router, prefix="/api")
 
     @app.get("/api/healthz", tags=["ops"])

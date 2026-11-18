@@ -13,6 +13,7 @@ const NAV = [
   { href: "/", label: "Today", icon: "today" as const },
   { href: "/projects", label: "Projects", icon: "projects" as const },
   { href: "/calendar", label: "Calendar", icon: "calendar" as const },
+  { href: "/stats", label: "Stats", icon: "chart" as const },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -106,9 +107,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ? "Settings"
                 : pathname.startsWith("/calendar")
                   ? "Calendar"
-                  : pathname.startsWith("/projects")
-                    ? "Projects"
-                    : "Today"}
+                  : pathname.startsWith("/stats")
+                    ? "Stats"
+                    : pathname.startsWith("/projects")
+                      ? "Projects"
+                      : "Today"}
             </strong>
           </span>
           <span className="inline-flex items-center gap-[10px]">

@@ -25,25 +25,35 @@ class StreakPair:
     longest: int
 
 
+async def load_logged_days(
+    db: AsyncSession, *, start: date, end: date, include_backfilled: bool
+) -> dict[UUID, set[date]]:
+    """Days with at least one log in the range.
+
+    `include_backfilled=False` gives the days written while the day was still
+    running, which is what a streak and a "clean" rate mean (R9).
+    """
+    conditions = [
+        Log.deleted_at.is_(None),
+        Log.business_date >= start,
+        Log.business_date <= end,
+    ]
+    if not include_backfilled:
+        conditions.append(Log.backfilled.is_(False))
+
+    rows = await db.execute(select(Log.project_id, Log.business_date).where(*conditions).distinct())
+    days: dict[UUID, set[date]] = {}
+    for project_id, business_date in rows:
+        days.setdefault(project_id, set()).add(business_date)
+    return days
+
+
 async def load_checked_days(db: AsyncSession, *, start: date, end: date) -> dict[UUID, set[date]]:
-    """Days with at least one log written while the day was still running.
+    """Days that count for a streak: written on the day, never backfilled.
 
     R9: a backfilled log never repairs a streak, so it is not a checked day.
     """
-    rows = await db.execute(
-        select(Log.project_id, Log.business_date)
-        .where(
-            Log.deleted_at.is_(None),
-            Log.backfilled.is_(False),
-            Log.business_date >= start,
-            Log.business_date <= end,
-        )
-        .distinct()
-    )
-    checked: dict[UUID, set[date]] = {}
-    for project_id, business_date in rows:
-        checked.setdefault(project_id, set()).add(business_date)
-    return checked
+    return await load_logged_days(db, start=start, end=end, include_backfilled=False)
 
 
 def expected_days_for(
