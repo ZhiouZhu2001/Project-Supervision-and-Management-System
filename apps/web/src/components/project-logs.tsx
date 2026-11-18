@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, listLogs, updateLog, type LogView } from "@/lib/api";
+import { ApiError, deleteLog, listLogs, restoreLog, updateLog, type LogView } from "@/lib/api";
 
 export function ProjectLogs({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
@@ -22,6 +22,28 @@ export function ProjectLogs({ projectId }: { projectId: string }) {
   const [duration, setDuration] = useState("");
   const [tags, setTags] = useState("");
   const [failure, setFailure] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState<LogView | null>(null);
+
+  async function refresh() {
+    await queryClient.invalidateQueries({ queryKey: ["logs", projectId] });
+    await queryClient.invalidateQueries({ queryKey: ["today"] });
+  }
+
+  const remove = useMutation({
+    mutationFn: (log: LogView) => deleteLog(log.id),
+    onSuccess: async (_result, log) => {
+      setUndoable(log);
+      await refresh();
+    },
+  });
+
+  const undo = useMutation({
+    mutationFn: (id: string) => restoreLog(id),
+    onSuccess: async () => {
+      setUndoable(null);
+      await refresh();
+    },
+  });
 
   const save = useMutation({
     mutationFn: (id: string) =>
@@ -158,14 +180,60 @@ export function ProjectLogs({ projectId }: { projectId: string }) {
                     </span>
                   ) : null}
                 </div>
-                <Button type="button" variant="subtle" size="sm" onClick={() => startEditing(log)}>
-                  Edit
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button type="button" variant="subtle" size="sm" onClick={() => startEditing(log)}>
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="subtle"
+                    size="sm"
+                    disabled={remove.isPending}
+                    aria-label={`Delete ${log.business_date} entry`}
+                    onClick={() => remove.mutate(log)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
             )}
           </li>
         ))}
       </ul>
+
+      {undoable ? (
+        <div
+          role="status"
+          className="mt-4 flex flex-wrap items-center gap-3 rounded-[10px] bg-secondary px-4 py-3 text-[12px] text-muted-foreground"
+        >
+          <span>
+            Deleted “{undoable.content.slice(0, 40)}”. Restorable for thirty days.
+          </span>
+          <Button
+            type="button"
+            variant="subtle"
+            size="sm"
+            disabled={undo.isPending}
+            onClick={() => undo.mutate(undoable.id)}
+          >
+            {undo.isPending ? "Restoring…" : "Undo"}
+          </Button>
+          <button
+            type="button"
+            className="underline underline-offset-4"
+            onClick={() => setUndoable(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+      {undo.isError ? (
+        <p role="alert" className="mt-2 text-[11px] text-destructive">
+          {undo.error instanceof ApiError && undo.error.code === "LOG_EXPIRED"
+            ? "That entry was deleted too long ago to restore."
+            : "Could not restore that entry."}
+        </p>
+      ) : null}
     </Card>
   );
 }

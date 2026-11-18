@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,9 @@ from app.schemas.log import LogCreate, LogUpdate, LogView
 from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
 
 router = APIRouter(prefix="/logs", tags=["logs"])
+
+# Soft-deleted logs stay recoverable for this long, then they are gone.
+RETENTION = timedelta(days=30)
 
 
 async def _tags_for(db: AsyncSession, log_ids: list[UUID]) -> dict[UUID, list[str]]:
@@ -142,6 +145,43 @@ async def update_log(
     if "tags" in changes:
         await _replace_tags(db, log.id, changes["tags"] or [])
 
+    log.updated_at = now_utc()
+    await db.commit()
+    await db.refresh(log)
+
+    return await _view(db, log)
+
+
+def _ensure_restorable(log: Log) -> None:
+    """A log can be recovered for thirty days, then it is gone."""
+    if log.deleted_at is not None and log.deleted_at <= now_utc() - RETENTION:
+        raise ApiError(410, "LOG_EXPIRED", "This log was deleted too long ago to restore")
+
+
+@router.delete("/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_log(
+    log_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    log = await _load(db, log_id)
+    log.deleted_at = now_utc()
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{log_id}/restore")
+async def restore_log(
+    log_id: UUID,
+    _account: CurrentAccount,
+    db: Annotated[AsyncSession, Depends(get_session)],
+) -> LogView:
+    log = await db.get(Log, log_id)
+    if log is None:
+        raise ApiError(404, "LOG_NOT_FOUND", "Log not found")
+    _ensure_restorable(log)
+
+    log.deleted_at = None
     log.updated_at = now_utc()
     await db.commit()
     await db.refresh(log)
