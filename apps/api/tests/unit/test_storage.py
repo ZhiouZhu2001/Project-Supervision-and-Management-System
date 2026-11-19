@@ -1,4 +1,4 @@
-﻿"""Storage naming (ARCH 8, AGENTS security).
+"""Storage naming (ARCH 8, AGENTS security).
 
 The name on disk must be a ULID under `YYYY/MM`, never anything derived from
 the uploaded file: a filename is user input and a stable one leaks content.
@@ -25,9 +25,9 @@ def _png() -> bytes:
 def test_a_stored_image_is_named_by_a_ulid_under_year_and_month() -> None:
     stored = save_image(_png(), today=date(2026, 11, 19))
 
-    match = ULID_PATH.match(stored.storage_path)
-    assert match is not None, stored.storage_path
-    assert stored.storage_path.startswith("2026/11/")
+    match = ULID_PATH.match(stored.storage_key)
+    assert match is not None, stored.storage_key
+    assert stored.storage_key.startswith("2026/11/")
 
 
 def test_a_ulid_is_twenty_six_crockford_characters() -> None:

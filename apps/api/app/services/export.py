@@ -96,9 +96,9 @@ async def build_export(db: AsyncSession, *, email: str) -> dict[str, Any]:
             {
                 "id": str(attachment.id),
                 "log_id": str(attachment.log_id),
-                "storage_path": attachment.storage_path,
-                "content_type": attachment.content_type,
-                "byte_size": attachment.byte_size,
+                "storage_path": attachment.storage_key,
+                "content_type": attachment.mime,
+                "byte_size": attachment.bytes,
                 "width": attachment.width,
                 "height": attachment.height,
                 "sha256": attachment.sha256,

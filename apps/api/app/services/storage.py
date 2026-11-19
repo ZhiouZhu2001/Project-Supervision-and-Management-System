@@ -1,4 +1,4 @@
-﻿"""Where uploads live and how they are named.
+"""Where uploads live and how they are named.
 
 Two rules govern everything here:
 
@@ -37,9 +37,9 @@ class UnsupportedImage(ValueError):
 
 @dataclass
 class StoredImage:
-    storage_path: str
-    content_type: str
-    byte_size: int
+    storage_key: str
+    mime: str
+    bytes: int
     width: int
     height: int
     sha256: str
@@ -82,21 +82,21 @@ def save_image(data: bytes, *, today) -> StoredImage:
         handle.write(data)
 
     return StoredImage(
-        storage_path=relative,
-        content_type=content_type,
-        byte_size=len(data),
+        storage_key=relative,
+        mime=content_type,
+        bytes=len(data),
         width=width,
         height=height,
         sha256=hashlib.sha256(data).hexdigest(),
     )
 
 
-def delete_image(storage_path: str) -> None:
+def delete_image(storage_key: str) -> None:
     """Remove a stored file, tolerating one that is already gone.
 
     A missing file must not fail a delete that already removed the row; the
     cleanup job can still reconcile the directory later.
     """
     with contextlib.suppress(OSError):
-        (upload_root() / storage_path).unlink(missing_ok=True)
+        (upload_root() / storage_key).unlink(missing_ok=True)
 

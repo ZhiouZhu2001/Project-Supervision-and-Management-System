@@ -59,8 +59,8 @@ async def _attachments_for(
                 url=attachment_url(attachment.id),
                 width=attachment.width,
                 height=attachment.height,
-                byte_size=attachment.byte_size,
-                content_type=attachment.content_type,
+                byte_size=attachment.bytes,
+                content_type=attachment.mime,
                 created_at=attachment.created_at,
             )
         )

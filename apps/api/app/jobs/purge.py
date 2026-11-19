@@ -49,7 +49,7 @@ async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> Pur
     if expired_logs:
         paths = list(
             await db.scalars(
-                select(Attachment.storage_path).where(Attachment.log_id.in_(expired_logs))
+                select(Attachment.storage_key).where(Attachment.log_id.in_(expired_logs))
             )
         )
         for path in paths:

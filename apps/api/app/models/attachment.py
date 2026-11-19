@@ -11,7 +11,7 @@ from app.models.base import Base
 class Attachment(Base):
     """An image on a log.
 
-    `storage_path` is relative to the upload root and is built from a random
+    `storage_key` is relative to the upload root and is built from a random
     name: the owner's filename never reaches the disk, the URL or the logs
     (security section of AGENTS.md).
     """
@@ -22,9 +22,9 @@ class Attachment(Base):
     log_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("log.id", ondelete="CASCADE"), nullable=False
     )
-    storage_path: Mapped[str] = mapped_column(String(160), nullable=False)
-    content_type: Mapped[str] = mapped_column(String(40), nullable=False)
-    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    mime: Mapped[str] = mapped_column(String(40), nullable=False)
+    bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     # Digest of the stored bytes, so an export can prove a file is the same one
     # without carrying the file itself.
     sha256: Mapped[str | None] = mapped_column(String(64))

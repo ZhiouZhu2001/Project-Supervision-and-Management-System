@@ -1,4 +1,4 @@
-﻿import io
+import io
 import re
 from uuid import UUID
 
@@ -174,7 +174,7 @@ async def test_the_stored_file_exists_and_is_removed_on_delete(
     async with session_factory() as session:
         stored = await session.get(Attachment, attachment_id)
         assert stored is not None
-        path = stored.storage_path
+        path = stored.storage_key
 
     from pathlib import Path
 
@@ -247,7 +247,7 @@ async def test_purging_a_log_removes_its_files(
     async with session_factory() as session:
         stored = await session.get(Attachment, UUID(created.json()["id"]))
         assert stored is not None
-        on_disk = Path(get_settings().upload_dir) / stored.storage_path
+        on_disk = Path(get_settings().upload_dir) / stored.storage_key
         assert on_disk.exists()
 
     await client.delete(f"{LOGS}/{log_id}")

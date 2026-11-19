@@ -24,8 +24,8 @@ def _view(attachment: Attachment) -> AttachmentView:
         url=attachment_url(attachment.id),
         width=attachment.width,
         height=attachment.height,
-        byte_size=attachment.byte_size,
-        content_type=attachment.content_type,
+        byte_size=attachment.bytes,
+        content_type=attachment.mime,
         created_at=attachment.created_at,
     )
 
@@ -73,9 +73,9 @@ async def upload_attachment(
 
     attachment = Attachment(
         log_id=log_id,
-        storage_path=stored.storage_path,
-        content_type=stored.content_type,
-        byte_size=stored.byte_size,
+        storage_key=stored.storage_key,
+        mime=stored.mime,
+        bytes=stored.bytes,
         width=stored.width,
         height=stored.height,
         sha256=stored.sha256,
@@ -110,8 +110,8 @@ async def serve_attachment(
     return Response(
         status_code=status.HTTP_200_OK,
         headers={
-            "X-Accel-Redirect": f"/protected/{attachment.storage_path}",
-            "Content-Type": attachment.content_type,
+            "X-Accel-Redirect": f"/protected/{attachment.storage_key}",
+            "Content-Type": attachment.mime,
             "Cache-Control": "private, max-age=300",
         },
     )
@@ -130,5 +130,5 @@ async def delete_attachment(
     await db.delete(attachment)
     await db.commit()
 
-    delete_image(attachment.storage_path)
+    delete_image(attachment.storage_key)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 > Rule IDs (R1â€“R14) are defined in [`PRD.md`](PRD.md); terms in [`GLOSSARY.md`](../GLOSSARY.md). **This document is the single list of technical decisions**: when code disagrees with it, either the code changes or this document changes first, with a stated reason.
 
@@ -203,7 +203,7 @@ Indexes: `(project_id, business_date) WHERE deleted_at IS NULL`, `(business_date
 | `mime` | `text NOT NULL` | Sniffed server-side |
 | `bytes` | `int NOT NULL` | â‰¤ 5 MB |
 | `width`, `height` | `int` | Image metadata |
-| `sha256` | `text NOT NULL` | Dedupe and integrity |
+| `sha256` | `text NOT NULL` | Dedupe and integrity. Nullable in the database for rows written before revision 0009; every new row carries a digest |
 | `created_at` | `timestamptz` | |
 
 ### 4.8 `alert_log` (R12)
