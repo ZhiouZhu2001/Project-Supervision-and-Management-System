@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, String, Text, func
+from sqlalchemy import CheckConstraint, Date, DateTime, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -35,4 +35,13 @@ class AlertLog(Base):
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # Declared on the model as well as in the migration: the test database is
+    # built from metadata, so a vocabulary that only exists in one place is a
+    # bug that waits until the application boots against a migrated database.
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('sent','skipped','failed','pending')", name="ck_alert_log_outcome"
+        ),
     )
