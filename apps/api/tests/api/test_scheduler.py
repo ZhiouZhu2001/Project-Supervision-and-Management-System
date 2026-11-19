@@ -159,7 +159,7 @@ async def test_an_old_row_does_not_count_as_todays_work(
     today = today_business_date()
     async with session_factory() as session:
         session.add(
-            AlertLog(business_date=today - timedelta(days=1), status="no_misses", project_count=0)
+            AlertLog(business_date=today - timedelta(days=1), outcome="skipped", project_ids=[])
         )
         await session.commit()
 
@@ -219,15 +219,15 @@ async def test_the_database_records_every_judgement(
             session, RecordingMailer(), to="o@example.com", current=today, base_url=BASE_URL
         )
         session.add(
-            AlertLog(business_date=today - timedelta(days=1), status="sent", project_count=1)
+            AlertLog(business_date=today - timedelta(days=1), outcome="sent", project_ids=[])
         )
         await session.commit()
 
         statuses = list(
-            await session.scalars(select(AlertLog.status).order_by(AlertLog.business_date))
+            await session.scalars(select(AlertLog.outcome).order_by(AlertLog.business_date))
         )
 
-    assert statuses == ["sent", "no_misses"]
+    assert statuses == ["sent", "skipped"]
 
 async def test_a_restart_after_midnight_still_judges_the_business_day(
     client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]

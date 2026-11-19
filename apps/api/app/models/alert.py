@@ -1,7 +1,8 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, String, Text, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,10 +21,18 @@ class AlertLog(Base):
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     business_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True, index=True)
-    # sent | no_misses | failed
-    status: Mapped[str] = mapped_column(String(16), nullable=False)
-    project_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    detail: Mapped[str | None] = mapped_column(Text)
+    # sent | skipped | failed | pending. `skipped` means the day owed nothing;
+    # `pending` means a send was started and its outcome is unknown (a crash),
+    # which is deliberately not retried — a second send is the outcome
+    # invariant 6 forbids.
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Which projects the message named. Storing the ids keeps the digest
+    # auditable after a project is renamed or deleted, which a count cannot.
+    project_ids: Mapped[list[UUID]] = mapped_column(
+        ARRAY(PGUUID(as_uuid=True)), nullable=False, server_default="{}"
+    )
+    recipient: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

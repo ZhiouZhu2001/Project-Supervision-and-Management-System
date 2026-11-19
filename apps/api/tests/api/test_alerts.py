@@ -120,7 +120,7 @@ async def test_nothing_missed_sends_nothing(
     assert report.status == "no_misses"
     assert mailer.sent == []
     # The decision is still recorded, so a quiet day and a dead scheduler differ.
-    assert [row.status for row in rows] == ["no_misses"]
+    assert [row.outcome for row in rows] == ["skipped"]
 
 
 async def test_paused_and_archived_projects_never_appear(
@@ -234,8 +234,8 @@ async def test_a_mail_failure_is_recorded_and_swallowed(
     assert report.status == "failed"
     assert report.detail is not None
     assert row is not None
-    assert row.status == "failed"
-    assert "smtp is down" in (row.detail or "")
+    assert row.outcome == "failed"
+    assert "smtp is down" in (row.error or "")
 
 
 async def test_paused_projects_do_not_count_as_missed_even_on_a_workday(
@@ -282,7 +282,7 @@ async def test_a_transient_mail_failure_is_retried_until_it_sends(
     assert report.attempts == 3
     assert flaky.calls == 3
     assert len(flaky.bodies) == 1
-    assert row is not None and row.status == "sent"
+    assert row is not None and row.outcome == "sent"
 
 
 async def test_the_digest_gives_up_after_three_attempts(

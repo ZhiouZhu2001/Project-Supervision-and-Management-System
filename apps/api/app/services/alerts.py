@@ -148,14 +148,15 @@ async def run_digest(
         return AlertReport(
             business_date=current,
             status="skipped",
-            project_count=existing.project_count if existing is not None else 0,
-            detail=f"already judged ({existing.status if existing is not None else 'unknown'})",
+            project_count=len(existing.project_ids) if existing is not None else 0,
+            detail=f"already judged ({existing.outcome if existing is not None else 'unknown'})",
         )
 
     entries = await collect_misses(db, current=current, base_url=base_url)
+    named = [entry.project_id for entry in entries]
 
     if not entries:
-        await _finish(db, alert_id, status="no_misses", project_count=0, detail=None)
+        await _finish(db, alert_id, outcome="skipped", project_ids=[], error=None, recipient=to)
         return AlertReport(business_date=current, status="no_misses")
 
     subject, body = render_digest(entries, current=current)
@@ -164,7 +165,9 @@ async def run_digest(
     )
 
     if error is not None:
-        await _finish(db, alert_id, status="failed", project_count=len(entries), detail=error)
+        await _finish(
+            db, alert_id, outcome="failed", project_ids=named, error=error, recipient=to
+        )
         return AlertReport(
             business_date=current,
             status="failed",
@@ -173,7 +176,7 @@ async def run_digest(
             attempts=attempts,
         )
 
-    await _finish(db, alert_id, status="sent", project_count=len(entries), detail=None)
+    await _finish(db, alert_id, outcome="sent", project_ids=named, error=None, recipient=to)
     return AlertReport(
         business_date=current, status="sent", project_count=len(entries), attempts=attempts
     )
@@ -190,7 +193,7 @@ async def _claim_business_day(db: AsyncSession, current: date) -> UUID | None:
     """
     alert_id = await db.scalar(
         insert(AlertLog)
-        .values(business_date=current, status="pending", project_count=0)
+        .values(business_date=current, outcome="pending", project_ids=[])
         .on_conflict_do_nothing(index_elements=[AlertLog.business_date])
         .returning(AlertLog.id)
     )
@@ -199,12 +202,18 @@ async def _claim_business_day(db: AsyncSession, current: date) -> UUID | None:
 
 
 async def _finish(
-    db: AsyncSession, alert_id: UUID, *, status: str, project_count: int, detail: str | None
+    db: AsyncSession,
+    alert_id: UUID,
+    *,
+    outcome: str,
+    project_ids: list[UUID],
+    error: str | None,
+    recipient: str,
 ) -> None:
     await db.execute(
         update(AlertLog)
         .where(AlertLog.id == alert_id)
-        .values(status=status, project_count=project_count, detail=detail)
+        .values(outcome=outcome, project_ids=project_ids, error=error, recipient=recipient)
     )
     await db.commit()
 

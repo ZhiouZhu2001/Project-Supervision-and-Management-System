@@ -212,7 +212,7 @@ Indexes: `(project_id, business_date) WHERE deleted_at IS NULL`, `(business_date
 |---|---|---|
 | `id` | `uuid PK` | |
 | `business_date` | `date NOT NULL UNIQUE` | Idempotency key |
-| `outcome` | `text NOT NULL` | `sent` \| `skipped` \| `failed` |
+| `outcome` | `text NOT NULL` | `sent` \| `skipped` \| `failed`, plus the transient `pending`: the row is inserted before the send starts, so a crash leaves visible proof that a digest was begun and its outcome unknown |
 | `project_ids` | `uuid[] NOT NULL DEFAULT '{}'` | Projects missed that round |
 | `recipient` | `text` | |
 | `error` | `text` | |

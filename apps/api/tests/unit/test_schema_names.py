@@ -5,6 +5,7 @@ model that quietly renames a column makes the document wrong for everyone who
 reads it later. These tests fail on a rename instead of two years of drift.
 """
 
+from app.models.alert import AlertLog
 from app.models.attachment import Attachment
 
 
@@ -22,4 +23,15 @@ def test_attachment_columns_are_the_ones_the_architecture_declares() -> None:
         # Soft delete: AGENTS requires it on every user-data table, so it is
         # present even though ARCH 4.7 lists only the domain columns.
         "deleted_at",
+    }
+
+def test_alert_log_columns_are_the_ones_the_architecture_declares() -> None:
+    assert set(AlertLog.__table__.columns.keys()) == {
+        "id",
+        "business_date",
+        "outcome",
+        "project_ids",
+        "recipient",
+        "error",
+        "created_at",
     }
