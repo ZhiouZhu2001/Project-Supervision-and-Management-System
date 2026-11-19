@@ -1,11 +1,20 @@
 from datetime import UTC, datetime, time, timedelta
+from uuid import UUID
 
 import httpx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.jobs.scheduler import ALERT_HOUR, JOB_ID, build_scheduler, catch_up
+from app.jobs.scheduler import (
+    ALERT_HOUR,
+    JOB_ID,
+    PURGE_JOB_ID,
+    build_scheduler,
+    catch_up,
+    run_purge_job,
+)
 from app.models.alert import AlertLog
+from app.models.project import Project
 from app.models.schedule import ScheduleRule
 from app.services.alerts import run_digest
 from app.services.business_day import MADRID, today_business_date
@@ -250,3 +259,42 @@ async def test_a_restart_after_midnight_still_judges_the_business_day(
     async with session_factory() as session:
         judged = await session.scalar(select(AlertLog.business_date))
     assert judged == today
+
+def test_the_retention_purge_is_scheduled_daily_before_the_backup() -> None:
+    scheduler = build_scheduler(
+        session_factory=None,  # type: ignore[arg-type]
+        mailer=RecordingMailer(),
+        to="o@example.com",
+        base_url=BASE_URL,
+    )
+
+    job = scheduler.get_job(PURGE_JOB_ID)
+
+    assert job is not None
+    assert "hour='3'" in str(job.trigger)
+    assert str(job.trigger.timezone) == "Europe/Madrid"
+
+
+async def test_the_purge_job_removes_what_is_past_retention(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """AGENTS data conventions: the 30-day cleanup must actually run somewhere.
+
+    It was reachable only from tests and __main__, which means deleted rows
+    would have stayed forever in a deployment that never runs it by hand.
+    """
+    await _login(client)
+    project_id = await _project(client, "Gone for good")
+    await client.delete(f"{PROJECTS}/{project_id}")
+
+    async with session_factory() as session:
+        stored = await session.get(Project, UUID(project_id))
+        assert stored is not None
+        stored.deleted_at = datetime.now(UTC) - timedelta(days=31)
+        await session.commit()
+
+    await run_purge_job(session_factory=session_factory)
+
+    async with session_factory() as session:
+        assert await session.get(Project, UUID(project_id)) is None
+

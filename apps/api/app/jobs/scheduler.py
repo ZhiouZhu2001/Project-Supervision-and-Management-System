@@ -13,6 +13,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.clock import now_utc
+from app.jobs.purge import purge_expired
 from app.services.alerts import run_digest
 from app.services.business_day import MADRID, business_date_for, today_business_date
 
@@ -20,6 +21,12 @@ logger = logging.getLogger("app.scheduler")
 
 ALERT_HOUR = 21
 JOB_ID = "alert-digest"
+
+# 03:15 Madrid: the purge runs before the 03:30 backup, so a backup never
+# captures rows that were already due to disappear that night.
+PURGE_HOUR = 3
+PURGE_MINUTE = 15
+PURGE_JOB_ID = "retention-purge"
 
 
 async def run_alert_job(
@@ -76,6 +83,22 @@ async def catch_up(
     return report.status != "skipped"
 
 
+async def run_purge_job(*, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    """Physically remove what was soft-deleted more than thirty days ago.
+
+    Scheduled rather than left to `python -m app.jobs.purge`: a job nobody runs
+    is not retention, it is an ever-growing table (AGENTS data conventions).
+    """
+    async with session_factory() as session:
+        report = await purge_expired(session)
+    logger.info(
+        "retention purge: %s projects, %s logs, %s files",
+        report.projects,
+        report.logs,
+        report.files,
+    )
+
+
 def build_scheduler(
     *,
     session_factory: async_sessionmaker[AsyncSession],
@@ -89,6 +112,19 @@ def build_scheduler(
         await run_alert_job(
             session_factory=session_factory, mailer=mailer, to=to, base_url=base_url
         )
+
+    async def purge() -> None:
+        await run_purge_job(session_factory=session_factory)
+
+    scheduler.add_job(
+        purge,
+        CronTrigger(hour=PURGE_HOUR, minute=PURGE_MINUTE, timezone=MADRID),
+        id=PURGE_JOB_ID,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
 
     scheduler.add_job(
         job,
