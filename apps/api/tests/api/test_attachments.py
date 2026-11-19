@@ -1,5 +1,5 @@
-﻿import re
-import io
+﻿import io
+import re
 from uuid import UUID
 
 import httpx
@@ -265,5 +265,6 @@ async def test_purging_a_log_removes_its_files(
     assert report.files == 1
     assert remaining == 0
     assert not on_disk.exists()
+
 
 
