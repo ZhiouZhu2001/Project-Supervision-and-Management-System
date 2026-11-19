@@ -1,4 +1,4 @@
-"""Where uploads live and how they are named.
+﻿"""Where uploads live and how they are named.
 
 Two rules govern everything here:
 
@@ -13,11 +13,11 @@ import hashlib
 import io
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
 from PIL import Image, UnidentifiedImageError
 
 from app.config import get_settings
+from app.ulid import new_ulid
 
 MAX_BYTES = 5 * 1024 * 1024
 MAX_PER_LOG = 4
@@ -72,7 +72,7 @@ def save_image(data: bytes, *, today) -> StoredImage:
     content_type, width, height = inspect_image(data)
     extension = FORMATS[next(key for key, value in FORMATS.items() if value[0] == content_type)][1]
 
-    relative = f"{today.year:04d}-{today.month:02d}/{uuid4().hex}{extension}"
+    relative = f"{today.year:04d}/{today.month:02d}/{new_ulid()}{extension}"
     absolute = upload_root() / relative
     absolute.parent.mkdir(parents=True, exist_ok=True)
 
@@ -99,3 +99,4 @@ def delete_image(storage_path: str) -> None:
     """
     with contextlib.suppress(OSError):
         (upload_root() / storage_path).unlink(missing_ok=True)
+

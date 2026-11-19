@@ -1,3 +1,4 @@
+﻿import re
 import io
 from uuid import UUID
 
@@ -153,13 +154,9 @@ async def test_serving_hands_the_file_to_the_proxy(client: httpx.AsyncClient) ->
 
     assert response.status_code == 200
     redirect = response.headers["x-accel-redirect"]
-    prefix, _, filename = redirect.removeprefix("/protected/").partition("/")
-    assert prefix.startswith("20")
-    assert "." in filename
-    stem = filename.split(".")[0]
-    # Random 32 hex characters: the original name never reaches the disk.
-    assert len(stem) == 32
-    assert all(character in "0123456789abcdef" for character in stem)
+    key = redirect.removeprefix("/protected/")
+    # ARCH 8: YYYY/MM/<ulid>.<ext> — the original name never reaches the disk.
+    assert re.fullmatch(r"\d{4}/\d{2}/[0-9A-HJKMNP-TV-Z]{26}\.png", key), key
     assert "shot" not in redirect
 
 
@@ -268,3 +265,5 @@ async def test_purging_a_log_removes_its_files(
     assert report.files == 1
     assert remaining == 0
     assert not on_disk.exists()
+
+
