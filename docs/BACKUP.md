@@ -35,7 +35,7 @@ backup failure ever gets noticed.
 ## Restoring
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm backup /usr/local/bin/restore.sh
+make restore f=<snapshot-id>
 ```
 
 It takes the newest snapshot by default, or a snapshot id as its argument. It

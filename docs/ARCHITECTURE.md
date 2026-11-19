@@ -400,7 +400,7 @@ Each entry states the condition that would reopen it. Without that trigger, it d
 
 ## 12. Observability
 
-- All containers log JSON to stdout; `docker compose logs` is the whole truth. nginx keeps its own access log.
+- All containers log JSON to stdout; `make logs` (development) and `make logs-prod` (host) are the whole truth. nginx keeps its own access log.
 - `/api/healthz` reports DB connectivity and `last_alert_business_date`; host cron curls it every 5 minutes and emails after six consecutive failures (reusing the SMTP config).
 - The scheduler always writes an `alert_log` row, including `skipped`, which distinguishes "nothing was missed" from "the scheduler is dead".
 

@@ -44,23 +44,20 @@ first one is obtained with the stack's plain-HTTP path:
 
 ```bash
 mkdir -p infra/nginx/certs   # empty; the volume is used after this
-docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --entrypoint sh certbot -c \
-  'certbot certonly --webroot -w /var/www/certbot -d "$DOMAIN" --email "$APP_EMAIL" --agree-tos --no-eff-email'
+make certs
 ```
 
 If the ACME challenge cannot be served yet (nothing is listening on port 80),
 use the standalone method for the first certificate only:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm -p 80:80 --entrypoint certbot certbot \
-  certonly --standalone -d "$DOMAIN" --email "$APP_EMAIL" --agree-tos --no-eff-email
+make certs-standalone
 ```
 
 ## 5. Start
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+make deploy
 curl -fsS https://$DOMAIN/api/healthz
 ```
 
@@ -85,17 +82,17 @@ for i in $(seq 1 12); do
 done; echo
 
 # Renewal
-docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --entrypoint certbot certbot renew --dry-run
+make certs-renew
 
 # Reboot recovery
 sudo reboot
 ```
 
-After the reboot, `docker compose ps` must show every service `Up` and the
+After the reboot, `make ps-prod` must show every service `Up` and the
 health endpoint must answer — nothing is started by hand.
 
 ## Renewal
 
 The `certbot` service loops twice a day and only acts inside the last 30 days
-of a certificate's life. `docker compose logs certbot` is where renewals
+of a certificate's life. `make logs-prod` (the certbot service) is where renewals
 appear; the dry run above is the rehearsal.
