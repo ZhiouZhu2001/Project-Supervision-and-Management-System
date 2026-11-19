@@ -249,3 +249,29 @@ async def test_a_finished_project_keeps_the_streak_it_had(
         frozen = await streaks_for(session, [project], current=today + timedelta(days=2))
 
     assert frozen[UUID(project_id)].current == 4
+
+async def test_rates_cover_the_whole_life_not_the_rollup_window(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """R13 counts over the range the caller means, and the default is the whole
+    project. Silently switching the denominator per project (12 weeks when the
+    project has any expected days there, lifetime otherwise) made the same
+    number mean two different things.
+    """
+    await _login(client)
+    project_id = (await client.post(PROJECTS, json={"name": "Long haul"})).json()["id"]
+    today = today_business_date()
+    started = today - timedelta(days=100)
+
+    async with session_factory() as session:
+        session.add(ScheduleRule(project_id=None, rest_weekdays=[], effective_from=started))
+        project = await session.get(Project, UUID(project_id))
+        assert project is not None
+        project.start_date = started
+        project.created_business_date = started
+        await session.commit()
+
+    body = (await client.get(STATS)).json()
+
+    rates = next(item for item in body["projects"] if item["id"] == project_id)
+    assert rates["expected_days"] == 101

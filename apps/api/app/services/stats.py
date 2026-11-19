@@ -2,6 +2,13 @@
 
 Every number here is derived from the same expected-day list the streak uses,
 so the statistics page and the calendar cannot disagree about what was owed.
+
+Two ranges, deliberately different and both stated:
+
+* the rates cover the project's **whole life**, from `counting_from` to today —
+  R13 defines them over the expected set, and GLOSSARY says "all expected days";
+* the rollup covers the last twelve weeks, which is what a weekly bar chart can
+  show at phone width.
 """
 
 from dataclasses import dataclass
@@ -14,7 +21,7 @@ from app.models.log import Log
 from app.models.project import Project
 from app.services.schedule import load_rules
 from app.services.status import load_status_rules
-from app.services.streak import current_streak, longest_streak, window_start
+from app.services.streak import current_streak, longest_streak
 from app.services.streak_inputs import expected_days_for, load_logged_days
 
 ROLLUP_WEEKS = 12
@@ -67,7 +74,9 @@ async def build_statistics(db: AsyncSession, *, current: date) -> Statistics:
         )
     )
 
-    start = window_start(current)
+    # R13: rates cover the project's whole life, so the log query has to reach
+    # back to the oldest project's first day, not a reporting window.
+    start = min((project.counting_from for project in projects), default=current)
     global_rules, by_project = await load_rules(db, until=current)
     status_rules = await load_status_rules(db, until=current)
     recorded_any = await load_logged_days(db, start=start, end=current, include_backfilled=True)
@@ -88,13 +97,12 @@ async def build_statistics(db: AsyncSession, *, current: date) -> Statistics:
         any_days = recorded_any.get(project.id, set())
         clean_days = recorded_clean.get(project.id, set())
 
-        rated = [day for day in days if day >= rollup_start] or days
         rates.append(
             ProjectRates(
                 project=project,
-                expected=len(rated),
-                recorded=sum(1 for day in rated if day in any_days),
-                clean=sum(1 for day in rated if day in clean_days),
+                expected=len(days),
+                recorded=sum(1 for day in days if day in any_days),
+                clean=sum(1 for day in days if day in clean_days),
                 current_streak=current_streak(days, clean_days, current),
                 longest_streak=longest_streak(days, clean_days),
             )
