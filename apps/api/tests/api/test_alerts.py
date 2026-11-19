@@ -334,3 +334,35 @@ async def test_overlapping_runs_send_one_email(
 
     assert sorted(statuses) == ["sent", "skipped"]
     assert len(mailer.sent) == 1
+
+async def test_a_log_written_after_the_digest_does_not_recall_the_email(
+    client: httpx.AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """PRD edge case 10: the message already went out, and it is not retracted.
+
+    Logging at 23:50 after the 21:00 digest leaves the day judged as `sent`;
+    the email is a snapshot of 21:00, not a live view.
+    """
+    await _login(client)
+    project_id = await _project(client, "Late night")
+    today = today_business_date()
+    await _no_rest_days(session_factory, today)
+    mailer = RecordingMailer()
+
+    async with session_factory() as session:
+        first = await run_digest(
+            session, mailer, to="o@example.com", current=today, base_url=BASE_URL
+        )
+    assert first.status == "sent"
+
+    await client.post(LOGS, json={"project_id": project_id, "content": "wrote it at 23:50"})
+
+    async with session_factory() as session:
+        row = await session.scalar(select(AlertLog))
+        second = await run_digest(
+            session, mailer, to="o@example.com", current=today, base_url=BASE_URL
+        )
+
+    assert row is not None and row.outcome == "sent"
+    assert second.status == "skipped"
+    assert len(mailer.sent) == 1

@@ -51,7 +51,7 @@ Project
 A business day is the 24-hour window `[04:00, next 04:00)` in `Europe/Madrid`. Its date is the calendar date of the starting instant: `2026-03-10 02:30` belongs to business day `2026-03-09`.
 
 - The timezone is fixed to `Europe/Madrid` and is not configurable.
-- Daylight saving is handled by calendar day, not by elapsed hours: `2026-03-29` (23 h) and `2026-10-25` (25 h) are each one business day.
+- Daylight saving is handled by calendar day, not by elapsed hours: the business day of `2026-03-28` lasts 23 h and the one of `2026-10-24` lasts 25 h. The short or long day is the one the clock change falls inside, which is the day *before* the switch date, because a business day runs 04:00 to 04:00.
 - All business-day computation happens server-side; client-supplied dates are validated (invariant 1 in AGENTS.md).
 
 ### R2 · Log
@@ -187,7 +187,7 @@ The Phase 2 React Native client covers exactly three screens: today, quick log, 
 ## Edge cases (each must have a test)
 
 1. Month boundary: `2026-03-31 03:59` and `04:01` fall on different business days.
-2. DST transitions: `2026-03-29` (23 h) and `2026-10-25` (25 h) are one business day each; streaks don't jump.
+2. DST transitions: the business day of `2026-03-28` is 23 h and the one of `2026-10-24` is 25 h; streaks don't jump.
 3. Creation day: `counting_from = creation business day`; the creation day is itself an expected day.
 4. Start date in the past: days before creation count toward nothing.
 5. Pause on the current day: takes effect the same day per `effective_from`.

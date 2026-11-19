@@ -195,3 +195,16 @@ async def test_an_invalid_cursor_is_rejected(client: httpx.AsyncClient) -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "CURSOR_INVALID"
+
+async def test_an_oversized_body_or_duration_is_rejected(client: httpx.AsyncClient) -> None:
+    """PRD edge case 13: the limit is enforced, not truncated."""
+    await _login(client)
+    project_id = await _project(client)
+
+    too_long = await client.post(LOGS, json={"project_id": project_id, "content": "x" * 2001})
+    too_long_duration = await client.post(
+        LOGS, json={"project_id": project_id, "content": "ok", "duration_minutes": 1441}
+    )
+
+    assert too_long.status_code == 422
+    assert too_long_duration.status_code == 422

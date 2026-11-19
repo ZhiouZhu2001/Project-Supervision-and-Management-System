@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -74,3 +75,21 @@ def test_a_future_date_is_rejected_with_a_stable_code() -> None:
         validate_business_date(today + timedelta(days=1), today=today)
 
     assert raised.value.code == "BUSINESS_DATE_IN_FUTURE"
+
+def test_the_month_boundary_is_a_cutover_not_a_midnight() -> None:
+    """PRD edge case 1: 03:59 and 04:01 on the first of a month differ."""
+    # April is CEST (+2): 03:59 local is 01:59 UTC, 04:01 local is 02:01 UTC.
+    assert business_date_for(datetime(2026, 4, 1, 1, 59, tzinfo=UTC)) == date(2026, 3, 31)
+    assert business_date_for(datetime(2026, 4, 1, 2, 1, tzinfo=UTC)) == date(2026, 4, 1)
+
+
+def test_an_instant_from_another_timezone_is_still_judged_in_madrid() -> None:
+    """PRD edge case 14: travelling does not move the business day.
+
+    10:00 in Tokyo is 02:00 in Madrid on the same calendar date, which is
+    still the previous business day at a 04:00 cutover.
+    """
+    tokyo = ZoneInfo("Asia/Tokyo")
+    instant = datetime(2026, 11, 19, 10, 0, tzinfo=tokyo)
+
+    assert business_date_for(instant) == date(2026, 11, 18)
