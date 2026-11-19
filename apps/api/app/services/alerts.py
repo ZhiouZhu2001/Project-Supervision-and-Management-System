@@ -1,4 +1,4 @@
-﻿"""The email that makes the system impossible to ignore (R12).
+"""The email that makes the system impossible to ignore (R12).
 
 One message, naming the projects that were expected today and were not
 recorded, with the numbers that make ignoring them feel like a choice.
@@ -111,7 +111,7 @@ def render_digest(entries: list[MissEntry], *, current: date) -> tuple[str, str]
         missed = (
             "first missed day" if entry.missed_days <= 1 else f"{entry.missed_days} days in a row"
         )
-        lines.append(f"- {entry.name} Ã¢â‚¬â€ {streak}, {missed}")
+        lines.append(f"- {entry.name} — {streak}, {missed}")
         lines.append(f"  {entry.url}")
 
     lines += [
@@ -183,7 +183,7 @@ async def _claim_business_day(db: AsyncSession, current: date) -> UUID | None:
     """Insert this day's judgement row, or return None if it already exists.
 
     Committed immediately: the row has to be visible to (and conflicting with)
-    any other run before the slow part Ã¢â‚¬â€ reading logs, sending mail Ã¢â‚¬â€ starts.
+    any other run before the slow part — reading logs, sending mail — starts.
     A crash after this point leaves the day marked `pending`, which is the
     honest record that a digest was started and its outcome unknown; retrying
     it automatically would risk the double-send invariant 6 exists to prevent.
