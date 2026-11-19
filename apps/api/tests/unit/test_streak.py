@@ -1,6 +1,11 @@
-from datetime import date, timedelta
+﻿from datetime import date, timedelta
 
-from app.services.streak import current_streak, expected_days, longest_streak
+from app.services.streak import (
+    consecutive_misses,
+    current_streak,
+    expected_days,
+    longest_streak,
+)
 
 # 2024-01-01 is a Monday, which keeps weekday reasoning explicit.
 MONDAY = date(2024, 1, 1)
@@ -95,3 +100,25 @@ def test_longest_streak_survives_a_later_break() -> None:
 
     assert current_streak(days, checked, day(0)) == 0
     assert longest_streak(days, checked) == 5
+
+
+def test_consecutive_misses_counts_expected_days_since_the_last_record() -> None:
+    days = [day(0), day(1), day(2)]
+
+    assert consecutive_misses(days, {day(0)}) == 2
+
+
+def test_a_project_never_recorded_has_a_run_the_length_of_its_history() -> None:
+    assert consecutive_misses([day(0), day(1)], set()) == 2
+
+
+def test_a_project_recorded_on_the_latest_day_has_no_run() -> None:
+    assert consecutive_misses([day(0), day(1)], {day(1)}) == 0
+
+
+def test_rest_days_and_pauses_are_invisible_to_the_run() -> None:
+    # A gap in the calendar is not a gap in the record: the expected-day list
+    # simply has no entry for a rest day or a paused stretch (R7, R8).
+    days = [day(0), day(7)]
+
+    assert consecutive_misses(days, {day(0)}) == 1

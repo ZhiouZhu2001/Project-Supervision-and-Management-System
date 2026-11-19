@@ -1,4 +1,4 @@
-"""The email that makes the system impossible to ignore (R12).
+﻿"""The email that makes the system impossible to ignore (R12).
 
 One message, naming the projects that were expected today and were not
 recorded, with the numbers that make ignoring them feel like a choice.
@@ -17,7 +17,7 @@ from app.models.alert import AlertLog
 from app.models.project import Project
 from app.services.schedule import load_rules
 from app.services.status import load_status_rules
-from app.services.streak import current_streak
+from app.services.streak import consecutive_misses, current_streak
 from app.services.streak_inputs import expected_days_for, load_logged_days
 
 
@@ -81,11 +81,8 @@ async def collect_misses(db: AsyncSession, *, current: date, base_url: str) -> l
         if current in project_logs:
             continue
 
-        missed = 0
-        for day in reversed(days):
-            if day in project_logs:
-                break
-            missed += 1
+        # Invariant 3: the run of misses is a streak fact, not a digest fact.
+        missed = consecutive_misses(days, project_logs)
 
         entries.append(
             MissEntry(
@@ -114,7 +111,7 @@ def render_digest(entries: list[MissEntry], *, current: date) -> tuple[str, str]
         missed = (
             "first missed day" if entry.missed_days <= 1 else f"{entry.missed_days} days in a row"
         )
-        lines.append(f"- {entry.name} â€” {streak}, {missed}")
+        lines.append(f"- {entry.name} Ã¢â‚¬â€ {streak}, {missed}")
         lines.append(f"  {entry.url}")
 
     lines += [
@@ -186,7 +183,7 @@ async def _claim_business_day(db: AsyncSession, current: date) -> UUID | None:
     """Insert this day's judgement row, or return None if it already exists.
 
     Committed immediately: the row has to be visible to (and conflicting with)
-    any other run before the slow part â€” reading logs, sending mail â€” starts.
+    any other run before the slow part Ã¢â‚¬â€ reading logs, sending mail Ã¢â‚¬â€ starts.
     A crash after this point leaves the day marked `pending`, which is the
     honest record that a digest was started and its outcome unknown; retrying
     it automatically would risk the double-send invariant 6 exists to prevent.
@@ -232,5 +229,6 @@ async def _send_with_retries(
             if attempt < ATTEMPTS:
                 await asyncio.sleep(backoff_seconds * 2 ** (attempt - 1))
     return error, ATTEMPTS
+
 
 

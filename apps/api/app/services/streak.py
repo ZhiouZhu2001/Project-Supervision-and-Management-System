@@ -79,6 +79,22 @@ def current_streak(days: Sequence[date], checked: set[date], today: date) -> int
     return total
 
 
+def consecutive_misses(days: Sequence[date], checked: set[date]) -> int:
+    """How many expected days in a row are unrecorded, counting back (R12).
+
+    Lives here rather than in the digest so the number in the email and the
+    number in the app cannot disagree (invariant 3). Only expected days count:
+    a rest day or a paused stretch is absent from `days`, so a gap in the
+    calendar is not a gap in the record.
+    """
+    run = 0
+    for day in reversed(days):
+        if day in checked:
+            break
+        run += 1
+    return run
+
+
 def longest_streak(days: Sequence[date], checked: set[date]) -> int:
     """Best ever run, for the record that must never shrink (R6)."""
     best = 0
