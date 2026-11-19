@@ -3,10 +3,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import now_utc
+from app.cursor import InvalidCursor
+from app.cursor import decode as decode_cursor
+from app.cursor import encode as encode_cursor
 from app.db import get_session
 from app.deps import CurrentAccount
 from app.errors import ApiError, project_not_found
@@ -15,7 +18,7 @@ from app.models.log import Log
 from app.models.log_tag import LogTag
 from app.models.project import Project
 from app.schemas.attachment import AttachmentView, attachment_url
-from app.schemas.log import LogCreate, LogUpdate, LogView
+from app.schemas.log import LogCreate, LogPage, LogUpdate, LogView
 from app.services.business_day import (
     BACKFILL_MAX_PER_DAY,
     BusinessDateError,
@@ -92,10 +95,11 @@ async def list_logs(
     _account: CurrentAccount,
     db: Annotated[AsyncSession, Depends(get_session)],
     project_id: UUID | None = None,
-    date_from: date | None = None,
-    date_to: date | None = None,
+    date_from: Annotated[date | None, Query(alias="from")] = None,
+    date_to: Annotated[date | None, Query(alias="to")] = None,
     limit: int = Query(default=50, ge=1, le=200),
-) -> list[LogView]:
+    cursor: str | None = None,
+) -> LogPage:
     query = select(Log).where(Log.deleted_at.is_(None))
     if project_id is not None:
         query = query.where(Log.project_id == project_id)
@@ -103,12 +107,29 @@ async def list_logs(
         query = query.where(Log.business_date >= date_from)
     if date_to is not None:
         query = query.where(Log.business_date <= date_to)
+    if cursor is not None:
+        try:
+            bound_day, bound_created_at, bound_id = decode_cursor(cursor)
+        except InvalidCursor as exc:
+            raise ApiError(422, "CURSOR_INVALID", "cursor is not valid") from exc
+        # Keyset, not offset: everything strictly after the last row seen.
+        query = query.where(
+            tuple_(Log.business_date, Log.created_at, Log.id)
+            < tuple_(bound_day, bound_created_at, bound_id)
+        )
 
+    # One extra row is fetched to learn whether another page exists without
+    # counting the whole table.
     rows = list(
         await db.scalars(
-            query.order_by(Log.business_date.desc(), Log.created_at.desc()).limit(limit)
+            query.order_by(
+                Log.business_date.desc(), Log.created_at.desc(), Log.id.desc()
+            ).limit(limit + 1)
         )
     )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
     tags = await _tags_for(db, [log.id for log in rows])
     attachments = await _attachments_for(db, [log.id for log in rows])
     views: list[LogView] = []
@@ -117,7 +138,13 @@ async def list_logs(
         view.tags = tags.get(log.id, [])
         view.attachments = attachments.get(log.id, [])
         views.append(view)
-    return views
+
+    next_cursor = (
+        encode_cursor(rows[-1].business_date, rows[-1].created_at, rows[-1].id)
+        if has_more and rows
+        else None
+    )
+    return LogPage(items=views, next_cursor=next_cursor)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

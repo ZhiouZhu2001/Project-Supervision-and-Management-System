@@ -1,5 +1,6 @@
 import httpx
 
+from app.services.business_day import today_business_date
 from tests.conftest import ACCOUNT_EMAIL, ACCOUNT_PASSWORD
 
 LOGS = "/api/logs"
@@ -120,7 +121,7 @@ async def test_the_list_returns_a_projects_logs_newest_first(client: httpx.Async
     await _log(client, project_id, "older")
     await _log(client, project_id, "newer")
 
-    body = (await client.get(LOGS, params={"project_id": project_id})).json()
+    body = (await client.get(LOGS, params={"project_id": project_id})).json()["items"]
 
     assert [entry["content"] for entry in body] == ["newer", "older"]
 
@@ -132,6 +133,65 @@ async def test_the_list_can_be_filtered_by_project(client: httpx.AsyncClient) ->
     await _log(client, first, "belongs to first")
     await _log(client, second, "belongs to second")
 
-    body = (await client.get(LOGS, params={"project_id": first})).json()
+    body = (await client.get(LOGS, params={"project_id": first})).json()["items"]
 
     assert [entry["content"] for entry in body] == ["belongs to first"]
+
+async def test_paging_with_a_cursor_walks_the_list_once(client: httpx.AsyncClient) -> None:
+    """AGENTS pagination: ?cursor=&limit=, no row seen twice and none skipped.
+
+    Three logs on one business day, because R2 allows several and because a
+    project created today owes nothing earlier (R3), so the sort key has to
+    fall through to `created_at` and the id.
+    """
+    await _login(client)
+    project_id = await _project(client)
+    for content in ("first", "second", "third"):
+        created = await client.post(LOGS, json={"project_id": project_id, "content": content})
+        assert created.status_code == 201, created.text
+
+    first_response = await client.get(LOGS, params={"limit": 2})
+    assert first_response.status_code == 200, first_response.text
+    first = first_response.json()
+    assert len(first["items"]) == 2
+    assert first["next_cursor"] is not None
+
+    second_response = await client.get(
+        LOGS, params={"limit": 2, "cursor": first["next_cursor"]}
+    )
+    assert second_response.status_code == 200, second_response.text
+    second = second_response.json()
+
+    contents = [entry["content"] for entry in first["items"] + second["items"]]
+    assert contents == ["third", "second", "first"]
+    assert second["next_cursor"] is None
+
+
+async def test_the_date_range_uses_the_documented_parameter_names(
+    client: httpx.AsyncClient,
+) -> None:
+    await _login(client)
+    today = today_business_date()
+    project_id = await _project(client)
+    for content in ("today", "yesterday"):
+        # Both land today: R3 refuses anything before the project started
+        # counting, and the project was created today.
+        created = await client.post(LOGS, json={"project_id": project_id, "content": content})
+        assert created.status_code == 201, created.text
+
+    body = (
+        await client.get(
+            LOGS, params={"from": today.isoformat(), "to": today.isoformat()}
+        )
+    ).json()
+
+    assert [entry["content"] for entry in body["items"]] == ["yesterday", "today"]
+
+
+async def test_an_invalid_cursor_is_rejected(client: httpx.AsyncClient) -> None:
+    await _login(client)
+
+    response = await client.get(LOGS, params={"cursor": "not-a-cursor"})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "CURSOR_INVALID"

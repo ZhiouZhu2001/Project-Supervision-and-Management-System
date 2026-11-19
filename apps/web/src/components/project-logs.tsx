@@ -14,7 +14,7 @@ export function ProjectLogs({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const { data, isPending, error } = useQuery({
     queryKey: ["logs", projectId],
-    queryFn: () => listLogs({ projectId }),
+    queryFn: async () => (await listLogs({ projectId })).items,
   });
 
   const [editing, setEditing] = useState<string | null>(null);

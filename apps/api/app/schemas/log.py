@@ -84,3 +84,14 @@ class LogView(BaseModel):
     created_at: datetime
     tags: list[str] = Field(default_factory=list)
     attachments: list[AttachmentView] = Field(default_factory=list)
+
+
+class LogPage(BaseModel):
+    """One page of logs plus the cursor for the next one (AGENTS pagination).
+
+    An envelope rather than a bare list: a client that cannot tell "this is
+    everything" from "there is more" will silently drop the tail.
+    """
+
+    items: list[LogView]
+    next_cursor: str | None = None

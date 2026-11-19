@@ -270,7 +270,7 @@ async def test_archiving_leaves_every_log_alone(client: httpx.AsyncClient) -> No
     await _status(client, project_id, "archived")
     await _status(client, project_id, "active")
 
-    logs = (await client.get(LOGS, params={"project_id": project_id})).json()
+    logs = (await client.get(LOGS, params={"project_id": project_id})).json()["items"]
     assert [log["id"] for log in logs] == [created.json()["id"]]
     assert logs[0]["content"] == "kept"
 

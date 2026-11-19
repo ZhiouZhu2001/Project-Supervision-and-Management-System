@@ -33,7 +33,8 @@ export function CalendarDayPanel({
 }) {
   const { data, isPending, error } = useQuery({
     queryKey: ["logs", "day", day?.business_date],
-    queryFn: () => listLogs({ from: day?.business_date, to: day?.business_date }),
+    queryFn: async () =>
+      (await listLogs({ from: day?.business_date, to: day?.business_date })).items,
     enabled: day !== null,
   });
 

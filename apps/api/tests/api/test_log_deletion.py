@@ -36,7 +36,7 @@ async def test_deleting_a_log_removes_it_from_the_list(client: httpx.AsyncClient
 
     assert (await client.delete(f"{LOGS}/{log['id']}")).status_code == 204
 
-    assert (await client.get(LOGS, params={"project_id": project_id})).json() == []
+    assert (await client.get(LOGS, params={"project_id": project_id})).json()["items"] == []
 
 
 async def test_deleting_the_only_log_unrecords_the_day(client: httpx.AsyncClient) -> None:
@@ -79,7 +79,7 @@ async def test_a_deleted_log_can_be_restored_with_its_content_and_date(
     assert restored.status_code == 200
     assert restored.json()["content"] == "keep me"
     assert restored.json()["business_date"] == log["business_date"]
-    assert len((await client.get(LOGS, params={"project_id": project_id})).json()) == 1
+    assert len((await client.get(LOGS, params={"project_id": project_id})).json()["items"]) == 1
 
 
 async def test_a_log_deleted_more_than_thirty_days_ago_cannot_be_restored(

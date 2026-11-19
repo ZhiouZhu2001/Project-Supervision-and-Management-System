@@ -121,7 +121,7 @@ async def test_a_fifth_image_is_refused_and_the_first_four_survive(
 
     assert fifth.status_code == 422
     assert fifth.json()["error"]["code"] == "ATTACHMENT_LIMIT_REACHED"
-    listed = (await client.get(LOGS, params={"project_id": project_id})).json()
+    listed = (await client.get(LOGS, params={"project_id": project_id})).json()["items"]
     assert len(listed[0]["attachments"]) == 4
 
 
@@ -198,7 +198,7 @@ async def test_attachments_belong_to_their_log_in_the_list(client: httpx.AsyncCl
         files={"file": ("shot.png", _image_bytes(), "image/png")},
     )
 
-    listed = (await client.get(LOGS, params={"project_id": project_id})).json()
+    listed = (await client.get(LOGS, params={"project_id": project_id})).json()["items"]
 
     assert len(listed[0]["attachments"]) == 1
     assert listed[0]["attachments"][0]["id"]

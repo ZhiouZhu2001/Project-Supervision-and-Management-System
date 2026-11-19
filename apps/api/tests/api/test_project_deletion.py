@@ -53,7 +53,7 @@ async def test_a_deleted_project_does_not_touch_its_neighbours(
 
     remaining = (await client.get(PROJECTS)).json()
     assert [project["name"] for project in remaining] == ["Keeper"]
-    assert len((await client.get(LOGS, params={"project_id": keeper})).json()) == 1
+    assert len((await client.get(LOGS, params={"project_id": keeper})).json()["items"]) == 1
 
 
 async def test_restoring_brings_back_the_project_and_its_logs(
@@ -69,7 +69,7 @@ async def test_restoring_brings_back_the_project_and_its_logs(
 
     assert restored.status_code == 200
     assert restored.json()["name"] == "Write a little"
-    assert len((await client.get(LOGS, params={"project_id": project_id})).json()) == 1
+    assert len((await client.get(LOGS, params={"project_id": project_id})).json()["items"]) == 1
     assert (await client.get(TODAY)).json()["projects"][0]["current_streak"] == before
 
 
