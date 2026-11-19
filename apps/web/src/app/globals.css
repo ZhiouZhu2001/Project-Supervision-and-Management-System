@@ -31,6 +31,15 @@
   --color-pill: var(--pill);
   --color-pill-ink: var(--pill-ink);
   --color-field-line: var(--field-line);
+  --color-note: var(--note);
+  --color-note-paper: var(--note-paper);
+  --color-ridge: var(--ridge);
+  --color-ridge-soft: var(--ridge-soft);
+  --color-hover-surface: var(--hover-surface);
+  --color-ink-soft: var(--ink-soft);
+  --color-card-hover-line: var(--card-hover-line);
+
+  --shadow-note: var(--note-shadow);
 
   --font-sans: "Segoe UI", Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
@@ -67,6 +76,18 @@
   --pill: #f7f1e5;
   --pill-ink: #735b32;
   --field-line: #d6d9ce;
+
+  /* The Today page's note card and the sidebar's quiet states. These were
+     typed as hex literals inside components; the values are unchanged, only
+     centralised so a theme change is one edit instead of eleven. */
+  --note: #f3f4ec;
+  --note-paper: #fafbf2;
+  --note-shadow: 0 10px 30px -18px rgba(41, 45, 41, 0.55);
+  --ridge: #8c9979;
+  --ridge-soft: #d9dfcb;
+  --hover-surface: #e9ece0;
+  --ink-soft: #60675f;
+  --card-hover-line: #cfd3c6;
 
   --radius: 0.875rem;
 }

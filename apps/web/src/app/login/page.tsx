@@ -34,9 +34,9 @@ export default function LoginPage() {
           </p>
 
           <div className="relative mb-3 mt-9 w-[330px] max-w-full pb-2" aria-hidden="true">
-            <div className="absolute -left-3 top-4 h-[calc(100%-16px)] w-[calc(100%+24px)] -rotate-[6deg] rounded-[10px] border border-[#8c9979]/50 bg-[#d9dfcb]" />
-            <div className="relative rotate-[1.5deg] rounded-[10px] border border-[#8c9979]/60 bg-[#fafbf2] px-5 py-4 shadow-[0_10px_30px_-18px_rgba(41,45,41,0.55)]">
-              <div className="flex items-center justify-between border-b border-[#e4e5de] pb-3">
+            <div className="absolute -left-3 top-4 h-[calc(100%-16px)] w-[calc(100%+24px)] -rotate-[6deg] rounded-[10px] border border-ridge/50 bg-ridge-soft" />
+            <div className="relative rotate-[1.5deg] rounded-[10px] border border-ridge/60 bg-note-paper px-5 py-4 shadow-note">
+              <div className="flex items-center justify-between border-b border-border pb-3">
                 <span className="text-[9px] font-[600] tracking-[1.6px] text-sage-ink">
                   SMALL STEPS. REAL PROGRESS.
                 </span>
@@ -45,7 +45,7 @@ export default function LoginPage() {
               {STEPS.map((step) => (
                 <div
                   key={step.label}
-                  className="flex items-center gap-3 border-b border-[#e4e5de] py-[10px] last:border-b-0 last:pb-1"
+                  className="flex items-center gap-3 border-b border-border py-[10px] last:border-b-0 last:pb-1"
                 >
                   <span className="grid h-6 w-6 place-items-center rounded-full bg-sage text-sage-ink">
                     <Icon name={step.icon} size={13} />

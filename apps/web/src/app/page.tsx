@@ -114,7 +114,7 @@ export default function TodayPage() {
                 <li key={project.id}>
                   <Link
                     href={`/projects/${project.id}`}
-                    className="flex items-center gap-[15px] rounded-[10px] border border-border bg-card px-5 py-[22px] transition-colors duration-[160ms] hover:border-[#cfd3c6] max-[1150px]:gap-3 max-[1150px]:px-[15px] max-[1150px]:py-[18px] max-[700px]:px-[14px] max-[700px]:py-[17px]"
+                    className="flex items-center gap-[15px] rounded-[10px] border border-border bg-card px-5 py-[22px] transition-colors duration-[160ms] hover:border-card-hover-line max-[1150px]:gap-3 max-[1150px]:px-[15px] max-[1150px]:py-[18px] max-[700px]:px-[14px] max-[700px]:py-[17px]"
                   >
                     <span className="grid h-[44px] w-[42px] shrink-0 place-items-center rounded-[10px] bg-sage text-sage-ink">
                       <Icon

@@ -343,7 +343,7 @@ export default function ProjectDetailPage() {
 
           <ProjectStatusCard project={data} />
 
-          <p className="flex items-start gap-2 rounded-[10px] bg-[#f3f4ec] px-4 py-3 text-[12px] text-muted-foreground">
+          <p className="flex items-start gap-2 rounded-[10px] bg-note px-4 py-3 text-[12px] text-muted-foreground">
             <Icon name="info" size={17} />
             <span>
               Status changes are dated. Changing them today never rewrites a past streak.

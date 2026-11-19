@@ -254,7 +254,7 @@ export default function ProjectsPage() {
             </section>
           ) : null}
 
-          <p className="flex items-start gap-2 rounded-[10px] bg-[#f3f4ec] px-4 py-3 text-[12px] text-muted-foreground">
+          <p className="flex items-start gap-2 rounded-[10px] bg-note px-4 py-3 text-[12px] text-muted-foreground">
             <Icon name="info" size={16} />
             <span>
               A project is something you keep doing. Start small; you can edit its details
