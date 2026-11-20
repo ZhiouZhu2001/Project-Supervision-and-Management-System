@@ -1,4 +1,4 @@
-﻿from datetime import date, timedelta
+from datetime import timedelta
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -11,7 +11,6 @@ from app.db import get_session
 from app.deps import CurrentAccount
 from app.errors import ApiError, project_not_found
 from app.models.project import Project
-from app.models.schedule import ScheduleRule
 from app.models.status import ProjectStatusChange
 from app.schemas.project import (
     ProjectCreate,
@@ -24,7 +23,13 @@ from app.schemas.project import (
 )
 from app.services.business_day import BusinessDateError, today_business_date, validate_business_date
 from app.services.retention import RETENTION
-from app.services.schedule import DEFAULT_REST_WEEKDAYS, validate_rest_weekdays
+from app.services.schedule import (
+    ScheduleInForce,
+    clear_override,
+    schedule_in_force,
+    set_override,
+    validate_rest_weekdays,
+)
 from app.services.status import can_transition
 from app.services.streak_inputs import streaks_for
 
@@ -219,42 +224,11 @@ async def project_stats(
     return {"current_streak": pair.current, "longest_streak": pair.longest}
 
 
-async def _latest_rule(
-    db: AsyncSession, *, project_id: UUID | None, today: date
-) -> ScheduleRule | None:
-    condition = (
-        ScheduleRule.project_id.is_(None)
-        if project_id is None
-        else ScheduleRule.project_id == project_id
-    )
-    return await db.scalar(
-        select(ScheduleRule)
-        .where(condition, ScheduleRule.effective_from <= today)
-        .order_by(ScheduleRule.effective_from.desc())
-        .limit(1)
-    )
-
-
-async def _schedule_view(db: AsyncSession, project_id: UUID, today: date) -> ScheduleView:
-    own = await _latest_rule(db, project_id=project_id, today=today)
-    # The latest own row decides: an explicit set is an override in force, an
-    # inherit row means the override was closed on that date (R14).
-    if own is not None and not own.inherits_default:
-        return ScheduleView(
-            rest_weekdays=sorted(own.rest_weekdays),
-            effective_from=own.effective_from,
-            inherited=False,
-        )
-
-    shared = await _latest_rule(db, project_id=None, today=today)
-    if shared is None:
-        return ScheduleView(
-            rest_weekdays=sorted(DEFAULT_REST_WEEKDAYS), effective_from=None, inherited=True
-        )
+def _schedule_view(info: ScheduleInForce) -> ScheduleView:
     return ScheduleView(
-        rest_weekdays=sorted(shared.rest_weekdays),
-        effective_from=shared.effective_from,
-        inherited=True,
+        rest_weekdays=sorted(info.rest_weekdays),
+        effective_from=info.effective_from,
+        inherited=info.inherited,
     )
 
 
@@ -265,7 +239,8 @@ async def read_schedule(
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> ScheduleView:
     await _load(db, project_id)
-    return await _schedule_view(db, project_id, today_business_date())
+    info = await schedule_in_force(db, project_id=project_id, today=today_business_date())
+    return _schedule_view(info)
 
 
 @router.put("/{project_id}/schedule")
@@ -289,27 +264,11 @@ async def update_schedule(
     except BusinessDateError as exc:
         raise ApiError(422, exc.code, exc.message) from exc
 
-    # Same shape as the global rule: one row per effective date, updated in
-    # place when the owner changes their mind on the same day.
-    rule = await db.scalar(
-        select(ScheduleRule).where(
-            ScheduleRule.project_id == project_id,
-            ScheduleRule.effective_from == effective_from,
-        )
+    await set_override(
+        db, project_id=project_id, weekdays=weekdays, effective_from=effective_from
     )
-    if rule is None:
-        rule = ScheduleRule(
-            project_id=project_id,
-            rest_weekdays=sorted(weekdays),
-            effective_from=effective_from,
-        )
-        db.add(rule)
-    else:
-        rule.rest_weekdays = sorted(weekdays)
-        rule.inherits_default = False
-
-    await db.commit()
-    return await _schedule_view(db, project_id, today)
+    info = await schedule_in_force(db, project_id=project_id, today=today)
+    return _schedule_view(info)
 
 
 @router.delete("/{project_id}/schedule")
@@ -318,35 +277,9 @@ async def clear_schedule(
     _account: CurrentAccount,
     db: Annotated[AsyncSession, Depends(get_session)],
 ) -> ScheduleView:
-    """Stop the override from today, without rewriting what it meant before (R14).
-
-    Deleting the rows would resurrect days the owner had exempted, so the
-    override is closed by appending a row that inherits the account default
-    from today — including whatever changes are made to that default later.
-    """
+    """Stop the override from today, without rewriting what it meant before (R14)."""
     await _load(db, project_id)
     today = today_business_date()
-    rule = await db.scalar(
-        select(ScheduleRule).where(
-            ScheduleRule.project_id == project_id,
-            ScheduleRule.effective_from == today,
-        )
-    )
-    if rule is None:
-        db.add(
-            ScheduleRule(
-                project_id=project_id,
-                rest_weekdays=[],
-                effective_from=today,
-                inherits_default=True,
-            )
-        )
-    else:
-        rule.inherits_default = True
-        rule.rest_weekdays = []
-    await db.commit()
-    return await _schedule_view(db, project_id, today)
-
-
-
-
+    await clear_override(db, project_id=project_id, today=today)
+    info = await schedule_in_force(db, project_id=project_id, today=today)
+    return _schedule_view(info)
