@@ -10,6 +10,7 @@ compare that schema with the models. Any difference is a boot-time bug waiting
 to happen.
 """
 
+import asyncio
 import os
 import subprocess
 from pathlib import Path
@@ -42,8 +43,10 @@ async def migrated_database_url() -> str:
             await connection.execute(text("CREATE SCHEMA public"))
 
         # In a subprocess because alembic/env.py takes its URL from the
-        # application settings, which this process has already cached.
-        completed = subprocess.run(
+        # application settings, which this process has already cached. Run in a
+        # thread so the event loop is never blocked (ASYNC221).
+        completed = await asyncio.to_thread(
+            subprocess.run,
             ["uv", "run", "--no-sync", "alembic", "upgrade", "head"],
             cwd=PROJECT_ROOT,
             env={**os.environ, "DATABASE_URL": url_str},
