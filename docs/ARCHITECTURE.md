@@ -121,6 +121,8 @@ RESTIC_PASSWORD=...
 
 Conventions: singular `snake_case` tables; `uuid` primary keys; every table has `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`; mutable tables add `updated_at`; user-data tables add `deleted_at` (soft delete).
 
+One test applies the migrations to an empty database and asks Alembic to compare the result with the models, so a column, index or check constraint that exists in only one of them fails the suite instead of the next boot.
+
 ### 4.1 `account` (ever exactly one row)
 
 | Column | Type | Notes |

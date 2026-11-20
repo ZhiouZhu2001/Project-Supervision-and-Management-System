@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, SmallInteger, false, func
@@ -34,5 +34,18 @@ class ScheduleRule(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    __table_args__ = (Index("ix_schedule_rule_project_effective", "project_id", "effective_from"),)
+    __table_args__ = (
+        Index("ix_schedule_rule_project_effective", "project_id", "effective_from"),
+        # Declared here as well as in the migration: NULLS NOT DISTINCT is what
+        # makes "one rule per effective date" a real constraint when project_id
+        # is null (the account default), and a constraint the model does not
+        # know about is one the test database never enforces.
+        Index(
+            "ix_schedule_rule_unique",
+            "project_id",
+            "effective_from",
+            unique=True,
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
 

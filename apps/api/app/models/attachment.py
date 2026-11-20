@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,3 +34,11 @@ class Attachment(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Both indexes live in the migrations. Declared here too, because the test
+    # database is built from the models: an index that only exists in a
+    # migration is one the suite never exercises (see test_schema_drift).
+    __table_args__ = (
+        Index("ix_attachment_log_id", "log_id"),
+        Index("ix_attachment_storage_path", "storage_key", unique=True),
+    )
